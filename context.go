@@ -1,4 +1,4 @@
-package golmdb
+package lmdbcli
 
 import (
 	"io"

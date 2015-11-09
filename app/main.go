@@ -1,7 +1,7 @@
 package main
 
-import "git.2nd.io/matt/golmdb"
+import "git.2nd.io/matt/lmdb-cli"
 
 func main() {
-	golmdb.Run()
+	lmdbcli.Run()
 }

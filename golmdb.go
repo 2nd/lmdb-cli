@@ -1,4 +1,4 @@
-package golmdb
+package lmdbcli
 
 import (
 	"flag"
@@ -13,6 +13,7 @@ import (
 var (
 	pathFlag = flag.String("db", "", "Relative path to lmdb file")
 	sizeFlag = flag.Float64("size", 1, "factor to allocate for growth or shrinkage")
+	roFlag   = flag.Bool("ro", false, "open the database in read-only mode")
 )
 
 // Run golmdb using the directory containing the data as dbPath
@@ -38,7 +39,11 @@ func Run() {
 
 	env, _ := mdb.NewEnv()
 	env.SetMapSize(size)
-	if err := env.Open(*pathFlag, 0, 0664); err != nil {
+	var openFlags uint
+	if *roFlag {
+		openFlags |= mdb.RDONLY
+	}
+	if err := env.Open(*pathFlag, openFlags, 0664); err != nil {
 		log.Fatal("failed to open environment: ", err)
 	}
 	context := &Context{
