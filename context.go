@@ -2,6 +2,8 @@ package lmdbcli
 
 import (
 	"io"
+	"log"
+	"path"
 
 	"github.com/szferi/gomdb"
 )
@@ -13,6 +15,24 @@ type Context struct {
 	prompt   string
 	writer   io.Writer
 	pathName string
+}
+
+func NewContext(dbPath string, size uint64, writer io.Writer) *Context {
+	env, _ := mdb.NewEnv()
+	env.SetMapSize(size)
+	var openFlags uint
+	if *roFlag {
+		openFlags |= mdb.RDONLY
+	}
+	if err := env.Open(dbPath, openFlags, 0664); err != nil {
+		log.Fatal("failed to open environment: ", err)
+	}
+	return &Context{
+		Env:      env,
+		path:     dbPath,
+		writer:   writer,
+		pathName: path.Base(dbPath),
+	}
 }
 
 func (c *Context) SwitchDB(name *string) error {

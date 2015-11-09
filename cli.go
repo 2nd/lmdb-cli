@@ -37,21 +37,7 @@ func Run() {
 		size = uint64(float64(stat.Size()) * *sizeFlag)
 	}
 
-	env, _ := mdb.NewEnv()
-	env.SetMapSize(size)
-	var openFlags uint
-	if *roFlag {
-		openFlags |= mdb.RDONLY
-	}
-	if err := env.Open(*pathFlag, openFlags, 0664); err != nil {
-		log.Fatal("failed to open environment: ", err)
-	}
-	context := &Context{
-		Env:      env,
-		path:     *pathFlag,
-		writer:   os.Stdout,
-		pathName: path.Base(*pathFlag),
-	}
+	context := NewContext(*pathFlag, size, os.Stdout)
 	defer context.Close()
 	if err := context.SwitchDB(nil); err != nil {
 		log.Fatal("could not select default database: ", err)
@@ -118,6 +104,5 @@ func scan(context *Context) error {
 			context.Write(key)
 			context.Write(val)
 		}
-		return nil
 	})
 }

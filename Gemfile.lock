@@ -1,0 +1,15 @@
+GEM
+  remote: https://ruby.taobao.org/
+  specs:
+    lmdb (0.4.8)
+    oj (2.13.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  lmdb
+  oj
+
+BUNDLED WITH
+   1.10.6
