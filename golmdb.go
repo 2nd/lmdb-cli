@@ -1,95 +1,118 @@
-package main
+package golmdb
 
 import (
 	"flag"
 	"fmt"
+	"log"
+	"os"
+	"path"
 
 	"github.com/szferi/gomdb"
 )
 
 var (
-	dbPath      = *flag.String("db", "", "Relative path to lmdb file")
-	shellPrompt = "golmdb>"
+	pathFlag = flag.String("db", "", "Relative path to lmdb file")
+	sizeFlag = flag.Float64("size", 1, "factor to allocate for growth or shrinkage")
 )
 
 // Run golmdb using the directory containing the data as dbPath
 
-func main() {
+func Run() {
 	flag.Parse()
-	if dbPath == "" {
-		dbPath = flag.Args()[0]
+
+	if len(*pathFlag) == 0 && len(flag.Args()) == 1 {
+		pathFlag = &flag.Args()[0]
 	}
+	if len(*pathFlag) == 0 {
+		log.Fatal("-db must be specified")
+	}
+
+	size := uint64(1024 * 1024 * 32)
+	if stat, err := os.Stat(path.Join(*pathFlag, "data.mdb")); err != nil {
+		if os.IsNotExist(err) == false {
+			log.Fatal("failed to stat data.mdb file: ", err)
+		}
+	} else {
+		size = uint64(float64(stat.Size()) * *sizeFlag)
+	}
+
 	env, _ := mdb.NewEnv()
-	env.SetMapSize(1 << 20)
-	if err := env.Open(dbPath, 0, 0664); err != nil {
-		fmt.Println("open environment failed")
-		return
+	env.SetMapSize(size)
+	if err := env.Open(*pathFlag, 0, 0664); err != nil {
+		log.Fatal("failed to open environment: ", err)
 	}
-	defer env.Close()
-
-	txn, _ := env.BeginTxn(nil, 0)
-	dbi, _ := txn.DBIOpen(nil, 0)
-	defer env.DBIClose(dbi)
-	txn.Commit()
-
-	runShell(env, txn, dbi)
+	context := &Context{
+		Env:      env,
+		path:     *pathFlag,
+		writer:   os.Stdout,
+		pathName: path.Base(*pathFlag),
+	}
+	defer context.Close()
+	if err := context.SwitchDB(nil); err != nil {
+		log.Fatal("could not select default database: ", err)
+	}
+	runShell(context)
 }
 
-func runShell(env *mdb.Env, txn *mdb.Txn, dbi mdb.DBI) {
-	running := true
-	for running {
-		fmt.Print(shellPrompt)
+func runShell(context *Context) {
+	var err error
+	for {
+		fmt.Print(context.prompt)
 		var f, i, d string
 		fmt.Scanln(&f, &i, &d)
 
 		if f == "" || i == "" {
-			fmt.Println("invalid command")
+			context.Write([]byte("invalid command"))
 		} else if f == "get" {
-			fmt.Println(mdbGet(env, dbi, i))
+			err = get(context, i)
 		} else if f == "del" {
-			fmt.Println(mdbDel(env, dbi, i))
+			err = del(context, i)
 		} else if f == "scan" {
-			scanMdb(env, dbi)
+			err = scan(context)
 		} else {
-			running = false
-		}
-	}
-	return
-}
-
-func mdbGet(env *mdb.Env, dbi mdb.DBI, key string) string {
-	txn, _ := env.BeginTxn(nil, mdb.RDONLY)
-	defer txn.Reset()
-	data, err := txn.Get(dbi, []byte(key))
-	if err != nil {
-		return "get failed"
-	}
-	return string(data)
-}
-
-func mdbDel(env *mdb.Env, dbi mdb.DBI, key string) string {
-	txn, _ := env.BeginTxn(nil, 0)
-	if err := txn.Del(dbi, []byte(key), nil); err != nil {
-		txn.Abort()
-		return "error when deleting entry"
-	}
-	txn.Commit()
-	return "entry successfully deleted"
-}
-
-func scanMdb(env *mdb.Env, dbi mdb.DBI) {
-	txn, _ := env.BeginTxn(nil, mdb.RDONLY)
-	defer txn.Abort()
-	cursor, _ := txn.CursorOpen(dbi)
-	defer cursor.Close()
-	for {
-		key, val, err := cursor.Get(nil, nil, mdb.NEXT)
-		if err == mdb.NotFound {
-			break
+			return
 		}
 		if err != nil {
-			panic(err)
+			context.Write([]byte(err.Error()))
 		}
-		fmt.Println(string(key), string(val))
 	}
+}
+
+func get(context *Context, key string) error {
+	return context.WithinRead(func(txn *mdb.Txn) error {
+		data, err := txn.Get(context.dbi, []byte(key))
+		if err != nil {
+			return err
+		}
+		context.Write(data)
+		return nil
+	})
+}
+
+func del(context *Context, key string) error {
+	return context.WithinWrite(func(txn *mdb.Txn) error {
+		return txn.Del(context.dbi, []byte(key), nil)
+	})
+}
+
+func scan(context *Context) error {
+	return context.WithinRead(func(txn *mdb.Txn) error {
+		cursor, err := txn.CursorOpen(context.dbi)
+		if err != nil {
+			return err
+		}
+		defer cursor.Close()
+		for {
+			key, val, err := cursor.Get(nil, nil, mdb.NEXT)
+			if err == mdb.NotFound {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			context.Write(key)
+			context.Write(val)
+		}
+		return nil
+	})
 }
