@@ -12,8 +12,9 @@ import (
 
 var (
 	pathFlag = flag.String("db", "", "Relative path to lmdb file")
-	sizeFlag = flag.Float64("size", 1, "factor to allocate for growth or shrinkage")
+	sizeFlag = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
 	roFlag   = flag.Bool("ro", false, "open the database in read-only mode")
+	minArgs  = map[string]int{"scan": 0, "stat": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2}
 )
 
 // Run golmdb using the directory containing the data as dbPath
@@ -49,16 +50,22 @@ func runShell(context *Context) {
 	var err error
 	for {
 		fmt.Print(context.prompt)
-		var f, i, d string
-		fmt.Scanln(&f, &i, &d)
+		var fn, key, val string
+		fmt.Scanln(&fn, &key, &val)
 
-		if f == "" || i == "" {
-			context.Write([]byte("invalid command"))
-		} else if f == "get" {
-			err = get(context, i)
-		} else if f == "del" {
-			err = del(context, i)
-		} else if f == "scan" {
+		if _, ok := minArgs[fn]; !ok {
+			context.Write([]byte("error: invalid command"))
+		} else if !checkNumArgs(fn, key, val) {
+			context.Write([]byte("error: not enough arguments"))
+		} else if fn == "get" {
+			err = get(context, key)
+		} else if fn == "exists" {
+			err = exists(context, key)
+		} else if fn == "del" {
+			err = del(context, key)
+		} else if fn == "put" {
+			err = put(context, key, val)
+		} else if fn == "scan" {
 			err = scan(context)
 		} else {
 			return
@@ -80,9 +87,27 @@ func get(context *Context, key string) error {
 	})
 }
 
+func exists(context *Context, key string) error {
+	return context.WithinRead(func(txn *mdb.Txn) error {
+		_, err := txn.Get(context.dbi, []byte(key))
+		if err != nil {
+			context.Write([]byte("false"))
+		} else {
+			context.Write([]byte("true"))
+		}
+		return nil
+	})
+}
+
 func del(context *Context, key string) error {
 	return context.WithinWrite(func(txn *mdb.Txn) error {
 		return txn.Del(context.dbi, []byte(key), nil)
+	})
+}
+
+func put(context *Context, key, val string) error {
+	return context.WithinWrite(func(txn *mdb.Txn) error {
+		return txn.Put(context.dbi, []byte(key), []byte(val), 0)
 	})
 }
 
@@ -105,4 +130,21 @@ func scan(context *Context) error {
 			context.Write(val)
 		}
 	})
+}
+
+func checkNumArgs(fn, key, val string) bool {
+	if fn == "" {
+		return false
+	}
+	n := 0
+	if key != "" {
+		n++
+	}
+	if val != "" {
+		n++
+	}
+	if expected, ok := minArgs[fn]; ok {
+		return n >= expected
+	}
+	return false
 }

@@ -26,3 +26,13 @@ func (t CLITests) GetsAnExistingKey() {
 	get(t.context, "over")
 	t.recorder.assert("9000!!")
 }
+
+func (t CLITests) VerifyExistingKey() {
+	exists(t.context, "over")
+	t.recorder.assert("true")
+}
+
+func (t CLITests) VerifyMissingKey() {
+	exists(t.context, "nowaythiskeyexists")
+	t.recorder.assert("false")
+}
