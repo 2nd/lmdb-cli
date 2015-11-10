@@ -1,11 +1,14 @@
 package lmdbcli
 
 import (
+	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path"
+	"unicode"
 
 	"github.com/szferi/gomdb"
 )
@@ -16,6 +19,20 @@ var (
 	roFlag   = flag.Bool("ro", false, "open the database in read-only mode")
 	minArgs  = map[string]int{"scan": 0, "stat": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2}
 )
+
+const (
+	STATE_NONE int = iota
+	STATE_WORD
+	STATE_QUOTE
+	STATE_ESCAPED
+)
+
+type Command struct {
+	fn   string
+	key  []byte
+	val  []byte
+	args [][]byte
+}
 
 // Run golmdb using the directory containing the data as dbPath
 
@@ -48,27 +65,24 @@ func Run() {
 
 func runShell(context *Context) {
 	var err error
+	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Print(context.prompt)
-		var fn, key, val string
-		fmt.Scanln(&fn, &key, &val)
+		input, _ := reader.ReadSlice('\n')
 
-		if _, ok := minArgs[fn]; !ok {
-			context.Write([]byte("error: invalid command"))
-		} else if !checkNumArgs(fn, key, val) {
-			context.Write([]byte("error: not enough arguments"))
-		} else if fn == "get" {
-			err = get(context, key)
-		} else if fn == "exists" {
-			err = exists(context, key)
-		} else if fn == "del" {
-			err = del(context, key)
-		} else if fn == "put" {
-			err = put(context, key, val)
-		} else if fn == "scan" {
+		args := parseInput(input)
+		if cmd, err1 := getCommand(args); err1 != nil {
+			context.Write([]byte(err1.Error()))
+		} else if cmd.fn == "get" {
+			err = get(context, cmd.key)
+		} else if cmd.fn == "exists" {
+			err = exists(context, cmd.key)
+		} else if cmd.fn == "del" {
+			err = del(context, cmd.key)
+		} else if cmd.fn == "put" {
+			err = put(context, cmd.key, cmd.val)
+		} else if cmd.fn == "scan" {
 			err = scan(context)
-		} else {
-			return
 		}
 		if err != nil {
 			context.Write([]byte(err.Error()))
@@ -76,9 +90,9 @@ func runShell(context *Context) {
 	}
 }
 
-func get(context *Context, key string) error {
+func get(context *Context, key []byte) error {
 	return context.WithinRead(func(txn *mdb.Txn) error {
-		data, err := txn.Get(context.dbi, []byte(key))
+		data, err := txn.Get(context.dbi, key)
 		if err != nil {
 			return err
 		}
@@ -87,9 +101,9 @@ func get(context *Context, key string) error {
 	})
 }
 
-func exists(context *Context, key string) error {
+func exists(context *Context, key []byte) error {
 	return context.WithinRead(func(txn *mdb.Txn) error {
-		_, err := txn.Get(context.dbi, []byte(key))
+		_, err := txn.Get(context.dbi, key)
 		if err != nil {
 			context.Write([]byte("false"))
 		} else {
@@ -99,15 +113,15 @@ func exists(context *Context, key string) error {
 	})
 }
 
-func del(context *Context, key string) error {
+func del(context *Context, key []byte) error {
 	return context.WithinWrite(func(txn *mdb.Txn) error {
-		return txn.Del(context.dbi, []byte(key), nil)
+		return txn.Del(context.dbi, key, nil)
 	})
 }
 
-func put(context *Context, key, val string) error {
+func put(context *Context, key, val []byte) error {
 	return context.WithinWrite(func(txn *mdb.Txn) error {
-		return txn.Put(context.dbi, []byte(key), []byte(val), 0)
+		return txn.Put(context.dbi, key, val, 0)
 	})
 }
 
@@ -132,19 +146,81 @@ func scan(context *Context) error {
 	})
 }
 
-func checkNumArgs(fn, key, val string) bool {
-	if fn == "" {
-		return false
+// handle both space delimiters and arguments in quotations
+// arguments are defined as contained by spaces ' arg ' or quotations '"arg"'
+// forward slash escapes for nested quotations
+func parseInput(in []byte) [][]byte {
+	var results [][]byte
+	var arg []byte
+	state := STATE_NONE
+	for _, b := range in {
+		switch state {
+		case STATE_NONE:
+			if isQuote(b) {
+				state = STATE_QUOTE
+			} else if !isWhiteSpace(b) {
+				arg = append(arg, b)
+				state = STATE_WORD
+			}
+		case STATE_ESCAPED:
+			arg = append(arg, b)
+			state = STATE_QUOTE
+		case STATE_WORD:
+			if isWhiteSpace(b) {
+				results = append(results, arg)
+				arg = make([]byte, 0)
+				state = STATE_NONE
+			} else {
+				arg = append(arg, b)
+			}
+		case STATE_QUOTE:
+			if b == '\\' {
+				state = STATE_ESCAPED
+			} else if isQuote(b) {
+				results = append(results, arg)
+				arg = make([]byte, 0)
+				state = STATE_NONE
+			} else {
+				arg = append(arg, b)
+			}
+		}
 	}
-	n := 0
-	if key != "" {
-		n++
+	return results
+}
+
+func isWhiteSpace(b byte) bool {
+	return unicode.IsSpace(rune(b))
+}
+
+func isQuote(b byte) bool {
+	return b == '"' || b == '\''
+}
+
+func getCommand(args [][]byte) (Command, error) {
+	numArgs := 0
+	var cmd Command
+	if len(args) == 0 {
+		return cmd, errors.New("empty command")
 	}
-	if val != "" {
-		n++
+	fn := string(args[0])
+	if _, ok := minArgs[fn]; !ok {
+		return cmd, errors.New("invalid command")
 	}
-	if expected, ok := minArgs[fn]; ok {
-		return n >= expected
+	var key, value []byte
+	if len(args) >= 2 && len(args[1]) > 0 {
+		key = args[1]
+		numArgs++
 	}
-	return false
+	if len(args) >= 3 && len(args[2]) > 0 {
+		value = args[2]
+		numArgs++
+	}
+	if numArgs < minArgs[fn] {
+		return cmd, errors.New("not enough arguments")
+	}
+	return Command{
+		fn:  fn,
+		key: key,
+		val: value,
+	}, nil
 }
