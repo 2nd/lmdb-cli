@@ -3,6 +3,7 @@ package lmdbcli
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -14,7 +15,7 @@ var (
 	pathFlag = flag.String("db", "", "Relative path to lmdb file")
 	sizeFlag = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
 	roFlag   = flag.Bool("ro", false, "open the database in read-only mode")
-	minArgs  = map[string]int{"scan": 0, "stat": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2}
+	minArgs  = map[string]int{"scan": 0, "stat": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2, "exit": 0, "quit": 0}
 )
 
 // Run golmdb using the directory containing the data as dbPath
@@ -43,15 +44,15 @@ func Run() {
 	if err := context.SwitchDB(nil); err != nil {
 		log.Fatal("could not select default database: ", err)
 	}
-	runShell(context)
+	runShell(context, os.Stdin)
 }
 
-func runShell(context *Context) {
+func runShell(context *Context, in io.Reader) {
 	var err error
 	for {
 		fmt.Print(context.prompt)
 		var fn, key, val string
-		fmt.Scanln(&fn, &key, &val)
+		fmt.Fscanln(in, &fn, &key, &val)
 
 		if _, ok := minArgs[fn]; !ok {
 			context.Write([]byte("error: invalid command"))
@@ -67,7 +68,7 @@ func runShell(context *Context) {
 			err = put(context, key, val)
 		} else if fn == "scan" {
 			err = scan(context)
-		} else {
+		} else if fn == "quit" || fn == "exit" {
 			return
 		}
 		if err != nil {

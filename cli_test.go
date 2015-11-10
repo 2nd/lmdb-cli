@@ -1,7 +1,9 @@
 package lmdbcli
 
 import (
+	"bytes"
 	"testing"
+	"time"
 
 	. "github.com/karlseguin/expect"
 )
@@ -35,4 +37,17 @@ func (t CLITests) VerifyExistingKey() {
 func (t CLITests) VerifyMissingKey() {
 	exists(t.context, "nowaythiskeyexists")
 	t.recorder.assert("false")
+}
+
+func (t CLITests) Exits() {
+	for _, input := range []string{"exit", "quit"} {
+		done := false
+		in := bytes.NewBufferString(input + "\n")
+		go func() {
+			runShell(t.context, in)
+			done = true
+		}()
+		time.Sleep(time.Millisecond * 5)
+		Expect(done).To.Equal(true)
+	}
 }
