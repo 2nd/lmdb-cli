@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -17,7 +18,7 @@ var (
 	pathFlag = flag.String("db", "", "Relative path to lmdb file")
 	sizeFlag = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
 	roFlag   = flag.Bool("ro", false, "open the database in read-only mode")
-	minArgs  = map[string]int{"scan": 0, "stat": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2}
+	minArgs  = map[string]int{"scan": 0, "stat": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2, "exit": 0, "quit": 0}
 )
 
 const (
@@ -60,12 +61,12 @@ func Run() {
 	if err := context.SwitchDB(nil); err != nil {
 		log.Fatal("could not select default database: ", err)
 	}
-	runShell(context)
+	runShell(context, os.Stdin)
 }
 
-func runShell(context *Context) {
+func runShell(context *Context, in io.Reader) {
 	var err error
-	reader := bufio.NewReader(os.Stdin)
+	reader := bufio.NewReader(in)
 	for {
 		fmt.Print(context.prompt)
 		input, _ := reader.ReadSlice('\n')
@@ -83,6 +84,8 @@ func runShell(context *Context) {
 			err = put(context, cmd.key, cmd.val)
 		} else if cmd.fn == "scan" {
 			err = scan(context)
+		} else if cmd.fn == "quit" || cmd.fn == "exit" {
+			return
 		}
 		if err != nil {
 			context.Write([]byte(err.Error()))
@@ -114,9 +117,14 @@ func exists(context *Context, key []byte) error {
 }
 
 func del(context *Context, key []byte) error {
-	return context.WithinWrite(func(txn *mdb.Txn) error {
+	err := context.WithinWrite(func(txn *mdb.Txn) error {
 		return txn.Del(context.dbi, key, nil)
 	})
+	if err != nil {
+		return err
+	}
+	context.Write([]byte("ok"))
+	return nil
 }
 
 func put(context *Context, key, val []byte) error {
