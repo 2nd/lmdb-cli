@@ -101,9 +101,14 @@ func exists(context *Context, key string) error {
 }
 
 func del(context *Context, key string) error {
-	return context.WithinWrite(func(txn *mdb.Txn) error {
+	err := context.WithinWrite(func(txn *mdb.Txn) error {
 		return txn.Del(context.dbi, []byte(key), nil)
 	})
+	if err != nil {
+		return err
+	}
+	context.Write([]byte("ok"))
+	return nil
 }
 
 func put(context *Context, key, val string) error {

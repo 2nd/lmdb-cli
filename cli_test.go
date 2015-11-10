@@ -39,6 +39,17 @@ func (t CLITests) VerifyMissingKey() {
 	t.recorder.assert("false")
 }
 
+func (t CLITests) DeletesAMissingKey() {
+	t.withinShell("del nowaythiskeyexists")
+	t.recorder.assert("MDB_NOTFOUND: No matching key/data pair found")
+}
+
+func (t CLITests) DeletesAKey() {
+	del(t.context, "over")
+	exists(t.context, "over")
+	t.recorder.assert("ok", "false")
+}
+
 func (t CLITests) Exits() {
 	for _, input := range []string{"exit", "quit"} {
 		done := false
@@ -50,4 +61,16 @@ func (t CLITests) Exits() {
 		time.Sleep(time.Millisecond * 5)
 		Expect(done).To.Equal(true)
 	}
+}
+
+func (t CLITests) withinShell(commands ...string) {
+	in := new(bytes.Buffer)
+	go func() {
+		runShell(t.context, in)
+	}()
+	for _, command := range commands {
+		in.WriteString(command + "\n")
+	}
+	in.WriteString("exit\n")
+	time.Sleep(time.Millisecond * 5)
 }
