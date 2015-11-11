@@ -1,3 +1,4 @@
+// a command line interface to lmdb
 package lmdbcli
 
 import (
@@ -18,6 +19,8 @@ var (
 	sizeFlag = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
 	roFlag   = flag.Bool("ro", false, "open the database in read-only mode")
 	minArgs  = map[string]int{"scan": 0, "stat": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2, "exit": 0, "quit": 0}
+
+	OK = []byte("OK")
 )
 
 const (
@@ -122,14 +125,19 @@ func del(context *Context, key []byte) error {
 	if err != nil {
 		return err
 	}
-	context.Write([]byte("ok"))
+	context.Write(OK)
 	return nil
 }
 
 func put(context *Context, key, val []byte) error {
-	return context.WithinWrite(func(txn *mdb.Txn) error {
+	err := context.WithinWrite(func(txn *mdb.Txn) error {
 		return txn.Put(context.dbi, key, val, 0)
 	})
+	if err != nil {
+		return err
+	}
+	context.Write(OK)
+	return nil
 }
 
 func scan(context *Context) error {

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	. "github.com/karlseguin/expect"
+	"github.com/szferi/gomdb"
 )
 
 type CLITests struct {
@@ -46,7 +47,24 @@ func (t CLITests) DeletesAMissingKey() {
 
 func (t CLITests) DeletesAKey() {
 	t.withinShell("del over", "exists over")
-	t.recorder.assert("ok", "false")
+	t.recorder.assert("OK", "false")
+}
+
+func (t CLITests) PutsAKey() {
+	t.withinShell("put paul atreides")
+	t.recorder.assert("OK")
+	t.assert("paul", "atreides")
+}
+
+func (t CLITests) OverwritesAKey() {
+	t.withinShell("put over ninethousand")
+	t.recorder.assert("OK")
+	t.assert("over", "ninethousand")
+}
+
+func (t CLITests) HandlesQuotes() {
+	t.withinShell(`put test " over\" 9000`, "get 'test'")
+	t.recorder.assert("OK", ` over\" 9000`)
 }
 
 func (t CLITests) Exits() {
@@ -72,4 +90,15 @@ func (t CLITests) withinShell(commands ...string) {
 	}
 	in.WriteString("exit\n")
 	time.Sleep(time.Millisecond * 5)
+}
+
+func (t CLITests) assert(key string, expected string) {
+	t.context.WithinRead(func(txn *mdb.Txn) error {
+		actual, err := txn.Get(t.context.dbi, []byte(key))
+		if err != nil {
+			panic(err)
+		}
+		Expect(expected).To.Eql(actual)
+		return nil
+	})
 }
