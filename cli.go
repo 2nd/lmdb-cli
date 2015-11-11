@@ -232,7 +232,7 @@ func isWhiteSpace(b byte) bool {
 }
 
 func isQuote(b byte) bool {
-	return b == '"' || b == '\''
+	return b == '"' || b == '\'' || b == '`'
 }
 
 func getCommand(args [][]byte) (Command, error) {

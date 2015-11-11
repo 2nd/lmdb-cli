@@ -18,10 +18,10 @@ func Test_CLI(t *testing.T) {
 	Expectify(new(CLITests), t)
 }
 
-func (c *CLITests) Each(test func()) {
-	c.context = NewTestContext()
-	c.recorder = c.context.writer.(*Recorder)
-	defer c.context.Close()
+func (t *CLITests) Each(test func()) {
+	t.context = NewTestContext()
+	t.recorder = t.context.writer.(*Recorder)
+	defer t.context.Close()
 	test()
 }
 
@@ -63,8 +63,8 @@ func (t CLITests) OverwritesAKey() {
 }
 
 func (t CLITests) HandlesQuotes() {
-	t.withinShell(`put test " over\" 9000`, "get 'test'")
-	t.recorder.assert("OK", ` over\" 9000`)
+	t.withinShell(`put test " over\" 9000"`, "get 'test'")
+	t.recorder.assert("OK", " over\" 9000")
 }
 
 func (t CLITests) IterateNothing() {
