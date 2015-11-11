@@ -3,6 +3,7 @@ package lmdbcli
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"flag"
 	"io"
@@ -18,9 +19,10 @@ var (
 	pathFlag = flag.String("db", "", "Relative path to lmdb file")
 	sizeFlag = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
 	roFlag   = flag.Bool("ro", false, "open the database in read-only mode")
-	minArgs  = map[string]int{"scan": 0, "stat": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2, "exit": 0, "quit": 0}
+	minArgs  = map[string]int{"scan": 0, "stat": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2, "exit": 0, "quit": 0, "it": 0}
 
-	OK = []byte("OK")
+	OK        = []byte("OK")
+	SCAN_MORE = []byte(`"it" for more`)
 )
 
 const (
@@ -72,10 +74,14 @@ func runShell(context *Context, in io.Reader) {
 	for {
 		context.Prompt()
 		input, _ := reader.ReadSlice('\n')
+		cmd, cerr := getCommand(parseInput(input))
 
-		args := parseInput(input)
-		if cmd, err1 := getCommand(args); err1 != nil {
-			context.Output([]byte(err1.Error()))
+		if cmd.fn != "it" && context.cursor != nil {
+			context.CloseCursor()
+		}
+
+		if cerr != nil {
+			context.Output([]byte(cerr.Error()))
 		} else if cmd.fn == "get" {
 			err = get(context, cmd.key)
 		} else if cmd.fn == "exists" {
@@ -85,7 +91,9 @@ func runShell(context *Context, in io.Reader) {
 		} else if cmd.fn == "put" {
 			err = put(context, cmd.key, cmd.val)
 		} else if cmd.fn == "scan" {
-			err = scan(context)
+			err = scan(context, cmd.key)
+		} else if cmd.fn == "it" {
+			err = iterate(context, false)
 		} else if cmd.fn == "quit" || cmd.fn == "exit" {
 			return
 		}
@@ -140,25 +148,41 @@ func put(context *Context, key, val []byte) error {
 	return nil
 }
 
-func scan(context *Context) error {
-	return context.WithinRead(func(txn *mdb.Txn) error {
-		cursor, err := txn.CursorOpen(context.dbi)
+func scan(context *Context, val []byte) error {
+	if err := context.PrepareCursor(val); err != nil {
+		return err
+	}
+	return iterate(context, true)
+}
+
+func iterate(context *Context, first bool) error {
+	cursor := context.cursor
+	if cursor == nil {
+		return nil
+	}
+	for i := 0; i < 10; i++ {
+		var err error
+		var key, value []byte
+		if first && cursor.prefix != nil {
+			key, value, err = cursor.Get(cursor.prefix, nil, mdb.SET_RANGE)
+			first = false
+		} else {
+			key, value, err = cursor.Get(nil, nil, mdb.NEXT)
+		}
+
+		if err == mdb.NotFound || (cursor.prefix != nil && !bytes.HasPrefix(key, cursor.prefix)) {
+			context.CloseCursor()
+			return nil
+		}
 		if err != nil {
+			context.CloseCursor()
 			return err
 		}
-		defer cursor.Close()
-		for {
-			key, val, err := cursor.Get(nil, nil, mdb.NEXT)
-			if err == mdb.NotFound {
-				return nil
-			}
-			if err != nil {
-				return err
-			}
-			context.Output(key)
-			context.Output(val)
-		}
-	})
+		context.Output(key)
+		context.Output(value)
+	}
+	context.Output(SCAN_MORE)
+	return nil
 }
 
 // handle both space delimiters and arguments in quotations
@@ -218,7 +242,8 @@ func getCommand(args [][]byte) (Command, error) {
 		return cmd, errors.New("empty command")
 	}
 	fn := string(args[0])
-	if _, ok := minArgs[fn]; !ok {
+	min, exists := minArgs[fn]
+	if !exists {
 		return cmd, errors.New("invalid command")
 	}
 	var key, value []byte
@@ -230,7 +255,7 @@ func getCommand(args [][]byte) (Command, error) {
 		value = args[2]
 		numArgs++
 	}
-	if numArgs < minArgs[fn] {
+	if numArgs < min {
 		return cmd, errors.New("not enough arguments")
 	}
 	return Command{

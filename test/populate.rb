@@ -11,4 +11,7 @@ FileUtils.mkdir(template)
 env = LMDB.new(template)
 db0 = env.database
 db0['over'] = "9000!!"
+24.times do |i|
+  db0["iter:#{i}"] = "value-#{i}"
+end
 env.close()

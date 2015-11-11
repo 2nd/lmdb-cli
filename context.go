@@ -16,6 +16,13 @@ type Context struct {
 	writer       io.Writer
 	promptWriter io.Writer
 	pathName     string
+	cursor       *Cursor
+}
+
+type Cursor struct {
+	*mdb.Cursor
+	txn    *mdb.Txn
+	prefix []byte
 }
 
 func NewContext(dbPath string, size uint64, writer io.Writer) *Context {
@@ -80,6 +87,33 @@ func (c *Context) WithinWrite(f func(*mdb.Txn) error) error {
 	}
 	defer txn.Commit()
 	return f(txn)
+}
+
+func (c *Context) PrepareCursor(prefix []byte) error {
+	txn, err := c.BeginTxn(nil, mdb.RDONLY)
+	if err != nil {
+		return err
+	}
+	cursor, err := txn.CursorOpen(c.dbi)
+	if err != nil {
+		txn.Abort()
+		return err
+	}
+	c.cursor = &Cursor{txn: txn, Cursor: cursor, prefix: prefix}
+	return nil
+}
+
+func (c *Context) CloseCursor() {
+	if c.cursor != nil {
+		c.cursor.Cursor.Close()
+		c.cursor.txn.Commit()
+		c.cursor = nil
+	}
+}
+
+func (c *Context) Close() {
+	c.CloseCursor()
+	c.Env.Close()
 }
 
 func (c *Context) Output(data []byte) {
