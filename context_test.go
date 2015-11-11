@@ -20,7 +20,7 @@ func Test_Context(t *testing.T) {
 func (_ ContextTests) WriteAppendsNewLine() {
 	buffer := new(bytes.Buffer)
 	c := &Context{writer: buffer}
-	c.Write([]byte("over 9000!"))
+	c.Output([]byte("over 9000!"))
 	Expect(buffer.String()).To.Equal("over 9000!\n")
 }
 

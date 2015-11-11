@@ -82,7 +82,7 @@ func (c *Context) WithinWrite(f func(*mdb.Txn) error) error {
 	return f(txn)
 }
 
-func (c *Context) Write(data []byte) {
+func (c *Context) Output(data []byte) {
 	c.writer.Write(data)
 	c.writer.Write([]byte{'\n'})
 }

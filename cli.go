@@ -75,7 +75,7 @@ func runShell(context *Context, in io.Reader) {
 
 		args := parseInput(input)
 		if cmd, err1 := getCommand(args); err1 != nil {
-			context.Write([]byte(err1.Error()))
+			context.Output([]byte(err1.Error()))
 		} else if cmd.fn == "get" {
 			err = get(context, cmd.key)
 		} else if cmd.fn == "exists" {
@@ -90,7 +90,7 @@ func runShell(context *Context, in io.Reader) {
 			return
 		}
 		if err != nil {
-			context.Write([]byte(err.Error()))
+			context.Output([]byte(err.Error()))
 		}
 	}
 }
@@ -101,7 +101,7 @@ func get(context *Context, key []byte) error {
 		if err != nil {
 			return err
 		}
-		context.Write(data)
+		context.Output(data)
 		return nil
 	})
 }
@@ -110,9 +110,9 @@ func exists(context *Context, key []byte) error {
 	return context.WithinRead(func(txn *mdb.Txn) error {
 		_, err := txn.Get(context.dbi, key)
 		if err != nil {
-			context.Write([]byte("false"))
+			context.Output([]byte("false"))
 		} else {
-			context.Write([]byte("true"))
+			context.Output([]byte("true"))
 		}
 		return nil
 	})
@@ -125,7 +125,7 @@ func del(context *Context, key []byte) error {
 	if err != nil {
 		return err
 	}
-	context.Write(OK)
+	context.Output(OK)
 	return nil
 }
 
@@ -136,7 +136,7 @@ func put(context *Context, key, val []byte) error {
 	if err != nil {
 		return err
 	}
-	context.Write(OK)
+	context.Output(OK)
 	return nil
 }
 
@@ -155,8 +155,8 @@ func scan(context *Context) error {
 			if err != nil {
 				return err
 			}
-			context.Write(key)
-			context.Write(val)
+			context.Output(key)
+			context.Output(val)
 		}
 	})
 }
