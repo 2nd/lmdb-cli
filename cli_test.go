@@ -25,17 +25,17 @@ func (c *CLITests) Each(test func()) {
 }
 
 func (t CLITests) GetsAnExistingKey() {
-	get(t.context, "over")
+	t.withinShell("get over")
 	t.recorder.assert("9000!!")
 }
 
 func (t CLITests) VerifyExistingKey() {
-	exists(t.context, "over")
+	t.withinShell("exists over")
 	t.recorder.assert("true")
 }
 
 func (t CLITests) VerifyMissingKey() {
-	exists(t.context, "nowaythiskeyexists")
+	t.withinShell("exists nowaythiskeyexists")
 	t.recorder.assert("false")
 }
 
@@ -45,8 +45,7 @@ func (t CLITests) DeletesAMissingKey() {
 }
 
 func (t CLITests) DeletesAKey() {
-	del(t.context, "over")
-	exists(t.context, "over")
+	t.withinShell("del over", "exists over")
 	t.recorder.assert("ok", "false")
 }
 
