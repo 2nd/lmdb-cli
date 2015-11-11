@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -68,7 +67,7 @@ func runShell(context *Context, in io.Reader) {
 	var err error
 	reader := bufio.NewReader(in)
 	for {
-		fmt.Print(context.prompt)
+		context.Prompt()
 		input, _ := reader.ReadSlice('\n')
 
 		args := parseInput(input)

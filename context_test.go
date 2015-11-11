@@ -2,6 +2,7 @@ package lmdbcli
 
 import (
 	"bytes"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -32,6 +33,7 @@ func NewTestContext() *Context {
 		panic(err)
 	}
 	c := NewContext(dbPath, 4194304, NewRecorder())
+	c.promptWriter = ioutil.Discard
 	if err := c.SwitchDB(nil); err != nil {
 		c.Close()
 		panic(err)

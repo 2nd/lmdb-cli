@@ -10,11 +10,12 @@ import (
 
 type Context struct {
 	*mdb.Env
-	dbi      mdb.DBI
-	path     string
-	prompt   string
-	writer   io.Writer
-	pathName string
+	dbi          mdb.DBI
+	path         string
+	prompt       []byte
+	writer       io.Writer
+	promptWriter io.Writer
+	pathName     string
 }
 
 func NewContext(dbPath string, size uint64, writer io.Writer) *Context {
@@ -28,11 +29,16 @@ func NewContext(dbPath string, size uint64, writer io.Writer) *Context {
 		log.Fatal("failed to open environment: ", err)
 	}
 	return &Context{
-		Env:      env,
-		path:     dbPath,
-		writer:   writer,
-		pathName: path.Base(dbPath),
+		Env:          env,
+		path:         dbPath,
+		writer:       writer,
+		promptWriter: writer,
+		pathName:     path.Base(dbPath),
 	}
+}
+
+func (c *Context) Prompt() {
+	c.promptWriter.Write(c.prompt)
 }
 
 func (c *Context) SwitchDB(name *string) error {
@@ -54,7 +60,7 @@ func (c *Context) SwitchDB(name *string) error {
 	} else {
 		n = *name
 	}
-	c.prompt = c.pathName + ":" + n + "> "
+	c.prompt = []byte(c.pathName + ":" + n + "> ")
 	return nil
 }
 
