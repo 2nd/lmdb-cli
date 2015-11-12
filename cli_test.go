@@ -79,7 +79,7 @@ func (t CLITests) IteratesAll() {
 
 func (t CLITests) Stats() {
 	t.withinShell("stats")
-	t.recorder.assert("map size: 4194304", "num entries: 25", "max readers: 126", "num readers: 1", "db page size: 4096", "non-leaf pages: 0", "leaf pages: 1", "overflow pages: 0", "last page id: 7", "map tx id: 25")
+	t.recorder.assert("map size: 4194304", "map size (human): 4MB", "num entries: 25", "max readers: 126", "num readers: 1", "db page size: 4096", "non-leaf pages: 0", "leaf pages: 1", "overflow pages: 0", "last page id: 7", "map tx id: 25")
 }
 
 func (t CLITests) Exits() {

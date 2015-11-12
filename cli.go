@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strconv"
 	"unicode"
 
 	"github.com/szferi/gomdb"
@@ -21,6 +20,7 @@ var (
 	sizeFlag = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
 	roFlag   = flag.Bool("ro", false, "open the database in read-only mode")
 	minArgs  = map[string]int{"scan": 0, "stat": 0, "stats": 0, "info": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2, "exit": 0, "quit": 0, "it": 0}
+	units    = []string{"KB", "MB", "GB", "TB", "PB"}
 
 	OK        = []byte("OK")
 	SCAN_MORE = []byte(`"it" for more`)
@@ -200,23 +200,21 @@ func stat(context *Context) error {
 	if err != nil {
 		return err
 	}
-	context.Output(outputStat("map size", info.MapSize))
-	context.Output(outputStat("num entries", stats.Entries))
-	context.Output(outputStat("max readers", uint64(info.MaxReaders)))
-	context.Output(outputStat("num readers", uint64(info.NumReaders)))
+	context.Output(labelUint("map size", info.MapSize))
+	if readable := readableBytes(info.MapSize); len(readable) != 0 {
+		context.Output(labelString("map size (human)", readable))
+	}
+	context.Output(labelUint("num entries", stats.Entries))
+	context.Output(labelUint("max readers", uint64(info.MaxReaders)))
+	context.Output(labelUint("num readers", uint64(info.NumReaders)))
 
-	context.Output(outputStat("db page size", uint64(stats.PSize)))
-	context.Output(outputStat("non-leaf pages", stats.BranchPages))
-	context.Output(outputStat("leaf pages", stats.LeafPages))
-	context.Output(outputStat("overflow pages", stats.OverflowPages))
-	context.Output(outputStat("last page id", info.LastPNO))
-	context.Output(outputStat("map tx id", info.LastTxnID))
+	context.Output(labelUint("db page size", uint64(stats.PSize)))
+	context.Output(labelUint("non-leaf pages", stats.BranchPages))
+	context.Output(labelUint("leaf pages", stats.LeafPages))
+	context.Output(labelUint("overflow pages", stats.OverflowPages))
+	context.Output(labelUint("last page id", info.LastPNO))
+	context.Output(labelUint("map tx id", info.LastTxnID))
 	return nil
-}
-
-func outputStat(label string, value uint64) []byte {
-	return []byte(label + ": " + strconv.FormatUint(value, 10))
-
 }
 
 // handle both space delimiters and arguments in quotations
