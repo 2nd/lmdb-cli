@@ -4,6 +4,7 @@ package lmdbcli
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"io"
@@ -16,11 +17,11 @@ import (
 )
 
 var (
-	pathFlag = flag.String("db", "", "Relative path to lmdb file")
-	sizeFlag = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
-	roFlag   = flag.Bool("ro", false, "open the database in read-only mode")
-	minArgs  = map[string]int{"scan": 0, "stat": 0, "stats": 0, "info": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2, "exit": 0, "quit": 0, "it": 0}
-	units    = []string{"KB", "MB", "GB", "TB", "PB"}
+	pathFlag     = flag.String("db", "", "Relative path to lmdb file")
+	sizeFlag     = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
+	roFlag       = flag.Bool("ro", false, "open the database in read-only mode")
+	requiredArgs = map[string]int{"scan": 0, "stat": 0, "stats": 0, "info": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2, "exit": 0, "quit": 0, "it": 0}
+	units        = []string{"KB", "MB", "GB", "TB", "PB"}
 
 	OK        = []byte("OK")
 	SCAN_MORE = []byte(`"it" for more`)
@@ -34,10 +35,10 @@ const (
 )
 
 type Command struct {
-	fn   string
-	key  []byte
-	val  []byte
-	args [][]byte
+	fn        string
+	key       []byte
+	val       []byte
+	jsonPrint bool
 }
 
 // Run golmdb using the directory containing the data as dbPath
@@ -87,7 +88,7 @@ func runShell(context *Context, in io.Reader) {
 		}
 		switch cmd.fn {
 		case "get":
-			err = get(context, cmd.key)
+			err = get(context, cmd.key, cmd.jsonPrint)
 		case "exists":
 			err = exists(context, cmd.key)
 		case "del":
@@ -109,13 +110,21 @@ func runShell(context *Context, in io.Reader) {
 	}
 }
 
-func get(context *Context, key []byte) error {
+func get(context *Context, key []byte, jsonPrint bool) error {
 	return context.WithinRead(func(txn *mdb.Txn) error {
 		data, err := txn.Get(context.dbi, key)
 		if err != nil {
 			return err
 		}
-		context.Output(data)
+		if jsonPrint {
+			var prettyData bytes.Buffer
+			if err := json.Indent(&prettyData, data, "", "    "); err != nil {
+				return err
+			}
+			context.Output(prettyData.Bytes())
+		} else {
+			context.Output(data)
+		}
 		return nil
 	})
 }
@@ -274,7 +283,7 @@ func getCommand(args [][]byte) (Command, error) {
 		return cmd, errors.New("empty command")
 	}
 	fn := string(args[0])
-	min, exists := minArgs[fn]
+	min, exists := requiredArgs[fn]
 	if !exists {
 		return cmd, errors.New("invalid command")
 	}
@@ -283,16 +292,27 @@ func getCommand(args [][]byte) (Command, error) {
 		key = args[1]
 		numArgs++
 	}
-	if len(args) >= 3 && len(args[2]) > 0 {
+	if min > 1 && len(args) >= 3 && len(args[2]) > 0 {
 		value = args[2]
 		numArgs++
 	}
 	if numArgs < min {
 		return cmd, errors.New("not enough arguments")
 	}
+	var extra [][]byte
+	if len(args) > numArgs+1 {
+		extra = args[numArgs+1:]
+	}
+	var jsonPrint bool
+	for _, item := range extra {
+		if string(item) == "json" {
+			jsonPrint = true
+		}
+	}
 	return Command{
-		fn:  fn,
-		key: key,
-		val: value,
+		fn:        fn,
+		key:       key,
+		val:       value,
+		jsonPrint: jsonPrint,
 	}, nil
 }
