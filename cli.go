@@ -19,7 +19,7 @@ var (
 	pathFlag = flag.String("db", "", "Relative path to lmdb file")
 	sizeFlag = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
 	roFlag   = flag.Bool("ro", false, "open the database in read-only mode")
-	minArgs  = map[string]int{"scan": 0, "stat": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2, "exit": 0, "quit": 0, "it": 0}
+	minArgs  = map[string]int{"scan": 0, "stat": 0, "info": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2, "exit": 0, "quit": 0, "it": 0}
 
 	OK        = []byte("OK")
 	SCAN_MORE = []byte(`"it" for more`)
@@ -82,19 +82,22 @@ func runShell(context *Context, in io.Reader) {
 
 		if cerr != nil {
 			context.Output([]byte(cerr.Error()))
-		} else if cmd.fn == "get" {
+			continue
+		}
+		switch cmd.fn {
+		case "get":
 			err = get(context, cmd.key)
-		} else if cmd.fn == "exists" {
+		case "exists":
 			err = exists(context, cmd.key)
-		} else if cmd.fn == "del" {
+		case "del":
 			err = del(context, cmd.key)
-		} else if cmd.fn == "put" {
+		case "put":
 			err = put(context, cmd.key, cmd.val)
-		} else if cmd.fn == "scan" {
+		case "scan":
 			err = scan(context, cmd.key)
-		} else if cmd.fn == "it" {
+		case "it":
 			err = iterate(context, false)
-		} else if cmd.fn == "quit" || cmd.fn == "exit" {
+		case "quit", "exit":
 			return
 		}
 		if err != nil {
