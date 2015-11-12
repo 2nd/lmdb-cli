@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"unicode"
 
 	"github.com/szferi/gomdb"
@@ -20,7 +21,7 @@ var (
 	pathFlag     = flag.String("db", "", "Relative path to lmdb file")
 	sizeFlag     = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
 	roFlag       = flag.Bool("ro", false, "open the database in read-only mode")
-	requiredArgs = map[string]int{"scan": 0, "stat": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2, "exit": 0, "quit": 0, "it": 0}
+	requiredArgs = map[string]int{"scan": 0, "stat": 0, "stats": 0, "info": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2, "exit": 0, "quit": 0, "it": 0}
 
 	OK        = []byte("OK")
 	SCAN_MORE = []byte(`"it" for more`)
@@ -83,19 +84,24 @@ func runShell(context *Context, in io.Reader) {
 
 		if cerr != nil {
 			context.Output([]byte(cerr.Error()))
-		} else if cmd.fn == "get" {
+			continue
+		}
+		switch cmd.fn {
+		case "get":
 			err = get(context, cmd.key, cmd.jsonPrint)
-		} else if cmd.fn == "exists" {
+		case "exists":
 			err = exists(context, cmd.key)
-		} else if cmd.fn == "del" {
+		case "del":
 			err = del(context, cmd.key)
-		} else if cmd.fn == "put" {
+		case "put":
 			err = put(context, cmd.key, cmd.val)
-		} else if cmd.fn == "scan" {
+		case "info", "stat", "stats":
+			err = stat(context)
+		case "scan":
 			err = scan(context, cmd.key)
-		} else if cmd.fn == "it" {
+		case "it":
 			err = iterate(context, false)
-		} else if cmd.fn == "quit" || cmd.fn == "exit" {
+		case "quit", "exit":
 			return
 		}
 		if err != nil {
@@ -192,6 +198,34 @@ func iterate(context *Context, first bool) error {
 	}
 	context.Output(SCAN_MORE)
 	return nil
+}
+
+func stat(context *Context) error {
+	info, err := context.Info()
+	if err != nil {
+		return err
+	}
+	stats, err := context.Stat()
+	if err != nil {
+		return err
+	}
+	context.Output(outputStat("map size", info.MapSize))
+	context.Output(outputStat("num entries", stats.Entries))
+	context.Output(outputStat("max readers", uint64(info.MaxReaders)))
+	context.Output(outputStat("num readers", uint64(info.NumReaders)))
+
+	context.Output(outputStat("db page size", uint64(stats.PSize)))
+	context.Output(outputStat("non-leaf pages", stats.BranchPages))
+	context.Output(outputStat("leaf pages", stats.LeafPages))
+	context.Output(outputStat("overflow pages", stats.OverflowPages))
+	context.Output(outputStat("last page id", info.LastPNO))
+	context.Output(outputStat("map tx id", info.LastTxnID))
+	return nil
+}
+
+func outputStat(label string, value uint64) []byte {
+	return []byte(label + ": " + strconv.FormatUint(value, 10))
+
 }
 
 // handle both space delimiters and arguments in quotations
