@@ -4,44 +4,36 @@ package lmdbcli
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
-	"errors"
 	"flag"
 	"io"
 	"log"
 	"os"
 	"path"
-	"unicode"
 
-	"github.com/szferi/gomdb"
+	"git.2nd.io/matt/lmdb-cli/commands"
+	"git.2nd.io/matt/lmdb-cli/core"
 )
 
 var (
-	pathFlag     = flag.String("db", "", "Relative path to lmdb file")
-	sizeFlag     = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
-	roFlag       = flag.Bool("ro", false, "open the database in read-only mode")
-	requiredArgs = map[string]int{"scan": 0, "stat": 0, "stats": 0, "info": 0, "expand": 0, "exists": 1, "get": 1, "del": 1, "put": 2, "exit": 0, "quit": 0, "it": 0}
-	units        = []string{"KB", "MB", "GB", "TB", "PB"}
+	pathFlag = flag.String("db", "", "Relative path to lmdb file")
+	sizeFlag = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
+	roFlag   = flag.Bool("ro", false, "open the database in read-only mode")
 
-	OK        = []byte("OK")
-	SCAN_MORE = []byte(`"it" for more`)
+	cmds  = make(map[string]Command)
+	units = []string{"KB", "MB", "GB", "TB", "PB"}
+
+	OK              = []byte("OK")
+	SCAN_MORE       = []byte(`"it" for more`)
+	INVALID_COMMAND = []byte("invalid command")
 )
 
-const (
-	STATE_NONE int = iota
-	STATE_WORD
-	STATE_QUOTE
-	STATE_ESCAPED
-)
-
-type Command struct {
-	fn        string
-	key       []byte
-	val       []byte
-	jsonPrint bool
+type Command interface {
+	Execute(context *core.Context, arguments []byte) error
 }
 
-// Run golmdb using the directory containing the data as dbPath
+func init() {
+	cmds["get"] = commands.Get{}
+}
 
 func Run() {
 	flag.Parse()
@@ -62,7 +54,7 @@ func Run() {
 		size = uint64(float64(stat.Size()) * *sizeFlag)
 	}
 
-	context := NewContext(*pathFlag, size, os.Stdout)
+	context := core.NewContext(*pathFlag, size, *roFlag, os.Stdout)
 	defer context.Close()
 	if err := context.SwitchDB(nil); err != nil {
 		log.Fatal("could not select default database: ", err)
@@ -70,249 +62,26 @@ func Run() {
 	runShell(context, os.Stdin)
 }
 
-func runShell(context *Context, in io.Reader) {
-	var err error
+func runShell(context *core.Context, in io.Reader) {
 	reader := bufio.NewReader(in)
 	for {
 		context.Prompt()
+		var arguments []byte
 		input, _ := reader.ReadSlice('\n')
-		cmd, cerr := getCommand(parseInput(input))
+		input = bytes.TrimSpace(input)
 
-		if cmd.fn != "it" && context.cursor != nil {
-			context.CloseCursor()
+		if index := bytes.IndexByte(input, ' '); index != -1 {
+			arguments = input[index+1:]
+			input = input[:index]
 		}
 
-		if cerr != nil {
-			context.Output([]byte(cerr.Error()))
+		cmd := cmds[string(input)]
+		if cmd == nil {
+			context.Output(INVALID_COMMAND)
 			continue
 		}
-		switch cmd.fn {
-		case "get":
-			err = get(context, cmd.key, cmd.jsonPrint)
-		case "exists":
-			err = exists(context, cmd.key)
-		case "del":
-			err = del(context, cmd.key)
-		case "put":
-			err = put(context, cmd.key, cmd.val)
-		case "info", "stat", "stats":
-			err = stat(context)
-		case "scan":
-			err = scan(context, cmd.key)
-		case "it":
-			err = iterate(context, false)
-		case "quit", "exit":
-			return
-		}
-		if err != nil {
-			context.Output([]byte(err.Error()))
+		if err := cmd.Execute(context, arguments); err != nil {
+			context.OutputErr(err)
 		}
 	}
-}
-
-func get(context *Context, key []byte, jsonPrint bool) error {
-	return context.WithinRead(func(txn *mdb.Txn) error {
-		data, err := txn.Get(context.dbi, key)
-		if err != nil {
-			return err
-		}
-		if jsonPrint {
-			var prettyData bytes.Buffer
-			if err := json.Indent(&prettyData, data, "", "    "); err != nil {
-				return err
-			}
-			context.Output(prettyData.Bytes())
-		} else {
-			context.Output(data)
-		}
-		return nil
-	})
-}
-
-func exists(context *Context, key []byte) error {
-	return context.WithinRead(func(txn *mdb.Txn) error {
-		_, err := txn.Get(context.dbi, key)
-		if err != nil {
-			context.Output([]byte("false"))
-		} else {
-			context.Output([]byte("true"))
-		}
-		return nil
-	})
-}
-
-func del(context *Context, key []byte) error {
-	err := context.WithinWrite(func(txn *mdb.Txn) error {
-		return txn.Del(context.dbi, key, nil)
-	})
-	if err != nil {
-		return err
-	}
-	context.Output(OK)
-	return nil
-}
-
-func put(context *Context, key, val []byte) error {
-	err := context.WithinWrite(func(txn *mdb.Txn) error {
-		return txn.Put(context.dbi, key, val, 0)
-	})
-	if err != nil {
-		return err
-	}
-	context.Output(OK)
-	return nil
-}
-
-func scan(context *Context, val []byte) error {
-	if err := context.PrepareCursor(val); err != nil {
-		return err
-	}
-	return iterate(context, true)
-}
-
-func iterate(context *Context, first bool) error {
-	cursor := context.cursor
-	if cursor == nil {
-		return nil
-	}
-	for i := 0; i < 10; i++ {
-		var err error
-		var key, value []byte
-		if first && cursor.prefix != nil {
-			key, value, err = cursor.Get(cursor.prefix, nil, mdb.SET_RANGE)
-			first = false
-		} else {
-			key, value, err = cursor.Get(nil, nil, mdb.NEXT)
-		}
-
-		if err == mdb.NotFound || (cursor.prefix != nil && !bytes.HasPrefix(key, cursor.prefix)) {
-			context.CloseCursor()
-			return nil
-		}
-		if err != nil {
-			context.CloseCursor()
-			return err
-		}
-		context.Output(key)
-		context.Output(value)
-	}
-	context.Output(SCAN_MORE)
-	return nil
-}
-
-func stat(context *Context) error {
-	info, err := context.Info()
-	if err != nil {
-		return err
-	}
-	stats, err := context.Stat()
-	if err != nil {
-		return err
-	}
-	context.Output(labelUint("map size", info.MapSize))
-	if readable := readableBytes(info.MapSize); len(readable) != 0 {
-		context.Output(labelString("map size (human)", readable))
-	}
-	context.Output(labelUint("num entries", stats.Entries))
-	context.Output(labelUint("max readers", uint64(info.MaxReaders)))
-	context.Output(labelUint("num readers", uint64(info.NumReaders)))
-
-	context.Output(labelUint("db page size", uint64(stats.PSize)))
-	context.Output(labelUint("non-leaf pages", stats.BranchPages))
-	context.Output(labelUint("leaf pages", stats.LeafPages))
-	context.Output(labelUint("overflow pages", stats.OverflowPages))
-	context.Output(labelUint("last page id", info.LastPNO))
-	context.Output(labelUint("map tx id", info.LastTxnID))
-	return nil
-}
-
-// handle both space delimiters and arguments in quotations
-// arguments are defined as contained by spaces ' arg ' or quotations '"arg"'
-// forward slash escapes for nested quotations
-func parseInput(in []byte) [][]byte {
-	var results [][]byte
-	var arg []byte
-	state := STATE_NONE
-	for _, b := range in {
-		switch state {
-		case STATE_NONE:
-			if isQuote(b) {
-				state = STATE_QUOTE
-			} else if !isWhiteSpace(b) {
-				arg = append(arg, b)
-				state = STATE_WORD
-			}
-		case STATE_ESCAPED:
-			arg = append(arg, b)
-			state = STATE_QUOTE
-		case STATE_WORD:
-			if isWhiteSpace(b) {
-				results = append(results, arg)
-				arg = make([]byte, 0)
-				state = STATE_NONE
-			} else {
-				arg = append(arg, b)
-			}
-		case STATE_QUOTE:
-			if b == '\\' {
-				state = STATE_ESCAPED
-			} else if isQuote(b) {
-				results = append(results, arg)
-				arg = make([]byte, 0)
-				state = STATE_NONE
-			} else {
-				arg = append(arg, b)
-			}
-		}
-	}
-	return results
-}
-
-func isWhiteSpace(b byte) bool {
-	return unicode.IsSpace(rune(b))
-}
-
-func isQuote(b byte) bool {
-	return b == '"' || b == '\'' || b == '`'
-}
-
-func getCommand(args [][]byte) (Command, error) {
-	numArgs := 0
-	var cmd Command
-	if len(args) == 0 {
-		return cmd, errors.New("empty command")
-	}
-	fn := string(args[0])
-	min, exists := requiredArgs[fn]
-	if !exists {
-		return cmd, errors.New("invalid command")
-	}
-	var key, value []byte
-	if len(args) >= 2 && len(args[1]) > 0 {
-		key = args[1]
-		numArgs++
-	}
-	if min > 1 && len(args) >= 3 && len(args[2]) > 0 {
-		value = args[2]
-		numArgs++
-	}
-	if numArgs < min {
-		return cmd, errors.New("not enough arguments")
-	}
-	var extra [][]byte
-	if len(args) > numArgs+1 {
-		extra = args[numArgs+1:]
-	}
-	var jsonPrint bool
-	for _, item := range extra {
-		if string(item) == "json" {
-			jsonPrint = true
-		}
-	}
-	return Command{
-		fn:        fn,
-		key:       key,
-		val:       value,
-		jsonPrint: jsonPrint,
-	}, nil
 }

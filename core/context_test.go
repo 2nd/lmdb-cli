@@ -1,4 +1,4 @@
-package lmdbcli
+package core
 
 import (
 	"bytes"
@@ -32,7 +32,7 @@ func NewTestContext() *Context {
 	if err := exec.Command("cp", "-r", path.Join(root, "template"), dbPath).Run(); err != nil {
 		panic(err)
 	}
-	c := NewContext(dbPath, 4194304, NewRecorder())
+	c := NewContext(dbPath, 4194304, false, NewRecorder())
 	c.promptWriter = ioutil.Discard
 	if err := c.SwitchDB(nil); err != nil {
 		c.Close()

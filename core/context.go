@@ -1,4 +1,4 @@
-package lmdbcli
+package core
 
 import (
 	"io"
@@ -10,7 +10,7 @@ import (
 
 type Context struct {
 	*mdb.Env
-	dbi          mdb.DBI
+	DBI          mdb.DBI
 	path         string
 	prompt       []byte
 	writer       io.Writer
@@ -25,11 +25,11 @@ type Cursor struct {
 	prefix []byte
 }
 
-func NewContext(dbPath string, size uint64, writer io.Writer) *Context {
+func NewContext(dbPath string, size uint64, ro bool, writer io.Writer) *Context {
 	env, _ := mdb.NewEnv()
 	env.SetMapSize(size)
 	var openFlags uint
-	if *roFlag {
+	if ro {
 		openFlags |= mdb.RDONLY
 	}
 	if err := env.Open(dbPath, openFlags, 0664); err != nil {
@@ -54,7 +54,7 @@ func (c *Context) SwitchDB(name *string) error {
 		if err != nil {
 			return err
 		}
-		c.dbi = dbi
+		c.DBI = dbi
 		return nil
 	})
 	if err != nil {
@@ -94,7 +94,7 @@ func (c *Context) PrepareCursor(prefix []byte) error {
 	if err != nil {
 		return err
 	}
-	cursor, err := txn.CursorOpen(c.dbi)
+	cursor, err := txn.CursorOpen(c.DBI)
 	if err != nil {
 		txn.Abort()
 		return err
@@ -119,4 +119,8 @@ func (c *Context) Close() {
 func (c *Context) Output(data []byte) {
 	c.writer.Write(data)
 	c.writer.Write([]byte{'\n'})
+}
+
+func (c *Context) OutputErr(err error) {
+	c.Output([]byte(err.Error()))
 }
