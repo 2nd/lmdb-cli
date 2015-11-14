@@ -67,7 +67,10 @@ func parse(in []byte) [][]byte {
 			}
 		}
 	}
-	return append(results, arg)
+	if len(arg) != 0 {
+		results = append(results, arg)
+	}
+	return results
 }
 
 func isWhiteSpace(b byte) bool {

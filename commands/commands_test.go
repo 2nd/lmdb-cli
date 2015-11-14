@@ -1,4 +1,4 @@
-package lmdbcli
+package commands
 
 import (
 	"testing"
@@ -6,19 +6,19 @@ import (
 	. "github.com/karlseguin/expect"
 )
 
-type UtilTests struct {
+type CommandsTests struct {
 }
 
-func Test_Util(t *testing.T) {
-	Expectify(new(UtilTests), t)
+func Test_Commands(t *testing.T) {
+	Expectify(new(CommandsTests), t)
 }
 
-func (_ UtilTests) LabelUint() {
+func (_ CommandsTests) LabelUint() {
 	Expect(labelUint("over", 9000)).To.Eql("over: 9000")
 	Expect(labelUint("power", 0)).To.Eql("power: 0")
 }
 
-func (_ UtilTests) ReableBytes() {
+func (_ CommandsTests) ReableBytes() {
 	Expect(readableBytes(0)).To.Equal("0B")
 	Expect(readableBytes(512)).To.Equal("512B")
 	Expect(readableBytes(1023)).To.Equal("1023B")

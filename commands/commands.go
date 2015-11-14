@@ -1,6 +1,15 @@
-package lmdbcli
+package commands
 
 import "strconv"
+
+var (
+	OK        = []byte("ok")
+	TRUE      = []byte("true")
+	FALSE     = []byte("false")
+	SCAN_MORE = []byte(`"it" for more`)
+
+	units = []string{"KB", "MB", "GB", "TB", "PB"}
+)
 
 func labelUint(label string, value uint64) []byte {
 	return labelString(label, strconv.FormatUint(value, 10))

@@ -19,11 +19,8 @@ var (
 	sizeFlag = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
 	roFlag   = flag.Bool("ro", false, "open the database in read-only mode")
 
-	cmds  = make(map[string]Command)
-	units = []string{"KB", "MB", "GB", "TB", "PB"}
+	cmds = make(map[string]Command)
 
-	OK              = []byte("OK")
-	SCAN_MORE       = []byte(`"it" for more`)
 	INVALID_COMMAND = []byte("invalid command")
 )
 
@@ -32,7 +29,16 @@ type Command interface {
 }
 
 func init() {
+	cmds["del"] = commands.Del{}
+	cmds["exists"] = commands.Exists{}
 	cmds["get"] = commands.Get{}
+	cmds["info"] = commands.Stats{}
+	cmds["it"] = commands.Iterate{}
+	cmds["put"] = commands.Put{}
+	cmds["scan"] = commands.Scan{}
+	cmds["set"] = commands.Put{}
+	cmds["stat"] = commands.Stats{}
+	cmds["stats"] = commands.Stats{}
 }
 
 func Run() {
@@ -54,7 +60,7 @@ func Run() {
 		size = uint64(float64(stat.Size()) * *sizeFlag)
 	}
 
-	context := core.NewContext(*pathFlag, size, *roFlag, os.Stdout)
+	context := core.NewContext(*pathFlag, size, *roFlag, os.Stdout, nil)
 	defer context.Close()
 	if err := context.SwitchDB(nil); err != nil {
 		log.Fatal("could not select default database: ", err)
@@ -73,6 +79,14 @@ func runShell(context *core.Context, in io.Reader) {
 		if index := bytes.IndexByte(input, ' '); index != -1 {
 			arguments = input[index+1:]
 			input = input[:index]
+		}
+
+		if bytes.Equal(input, []byte("exit")) || bytes.Equal(input, []byte("quit")) {
+			break
+		}
+
+		if bytes.Equal(input, []byte("it")) == false {
+			context.CloseCursor()
 		}
 
 		cmd := cmds[string(input)]

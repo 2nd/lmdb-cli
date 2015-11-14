@@ -16,16 +16,16 @@ type Context struct {
 	writer       io.Writer
 	promptWriter io.Writer
 	pathName     string
-	cursor       *Cursor
+	Cursor       *Cursor
 }
 
 type Cursor struct {
 	*mdb.Cursor
 	txn    *mdb.Txn
-	prefix []byte
+	Prefix []byte
 }
 
-func NewContext(dbPath string, size uint64, ro bool, writer io.Writer) *Context {
+func NewContext(dbPath string, size uint64, ro bool, writer io.Writer, promptWriter io.Writer) *Context {
 	env, _ := mdb.NewEnv()
 	env.SetMapSize(size)
 	var openFlags uint
@@ -35,11 +35,14 @@ func NewContext(dbPath string, size uint64, ro bool, writer io.Writer) *Context 
 	if err := env.Open(dbPath, openFlags, 0664); err != nil {
 		log.Fatal("failed to open environment: ", err)
 	}
+	if promptWriter == nil {
+		promptWriter = writer
+	}
 	return &Context{
 		Env:          env,
 		path:         dbPath,
 		writer:       writer,
-		promptWriter: writer,
+		promptWriter: promptWriter,
 		pathName:     path.Base(dbPath),
 	}
 }
@@ -99,15 +102,15 @@ func (c *Context) PrepareCursor(prefix []byte) error {
 		txn.Abort()
 		return err
 	}
-	c.cursor = &Cursor{txn: txn, Cursor: cursor, prefix: prefix}
+	c.Cursor = &Cursor{txn: txn, Cursor: cursor, Prefix: prefix}
 	return nil
 }
 
 func (c *Context) CloseCursor() {
-	if c.cursor != nil {
-		c.cursor.Cursor.Close()
-		c.cursor.txn.Commit()
-		c.cursor = nil
+	if c.Cursor != nil {
+		c.Cursor.Cursor.Close()
+		c.Cursor.txn.Commit()
+		c.Cursor = nil
 	}
 }
 
