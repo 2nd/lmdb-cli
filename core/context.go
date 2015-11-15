@@ -35,9 +35,6 @@ func NewContext(dbPath string, size uint64, ro bool, writer io.Writer, promptWri
 	if err := env.Open(dbPath, openFlags, 0664); err != nil {
 		log.Fatal("failed to open environment: ", err)
 	}
-	if promptWriter == nil {
-		promptWriter = writer
-	}
 	return &Context{
 		Env:          env,
 		path:         dbPath,

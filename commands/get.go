@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	GetFormatErr = errors.New("second optional argument must be 'json'")
+	GetFormatErr = errors.New("second argument must be 'json'")
 )
 
 type Get struct {

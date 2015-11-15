@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"flag"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -15,9 +16,10 @@ import (
 )
 
 var (
-	pathFlag = flag.String("db", "", "Relative path to lmdb file")
-	sizeFlag = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
-	roFlag   = flag.Bool("ro", false, "open the database in read-only mode")
+	pathFlag    = flag.String("db", "", "Relative path to lmdb file")
+	sizeFlag    = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
+	roFlag      = flag.Bool("ro", false, "open the database in read-only mode")
+	commandFlag = flag.String("c", "", "command to run")
 
 	cmds = make(map[string]Command)
 
@@ -59,43 +61,58 @@ func Run() {
 	} else {
 		size = uint64(float64(stat.Size()) * *sizeFlag)
 	}
+	runOne := len(*commandFlag) != 0
 
-	context := core.NewContext(*pathFlag, size, *roFlag, os.Stdout, nil)
+	var promptWriter io.Writer = os.Stdout
+	if runOne {
+		promptWriter = ioutil.Discard
+	}
+
+	context := core.NewContext(*pathFlag, size, *roFlag, os.Stdout, promptWriter)
 	defer context.Close()
 	if err := context.SwitchDB(nil); err != nil {
 		log.Fatal("could not select default database: ", err)
 	}
-	runShell(context, os.Stdin)
+	if runOne {
+		process(context, []byte(*commandFlag))
+	} else {
+		runShell(context, os.Stdin)
+	}
 }
 
 func runShell(context *core.Context, in io.Reader) {
 	reader := bufio.NewReader(in)
 	for {
-		context.Prompt()
-		var arguments []byte
 		input, _ := reader.ReadSlice('\n')
-		input = bytes.TrimSpace(input)
-
-		if index := bytes.IndexByte(input, ' '); index != -1 {
-			arguments = input[index+1:]
-			input = input[:index]
-		}
-
-		if bytes.Equal(input, []byte("exit")) || bytes.Equal(input, []byte("quit")) {
+		if process(context, input) == false {
 			break
 		}
-
-		if bytes.Equal(input, []byte("it")) == false {
-			context.CloseCursor()
-		}
-
-		cmd := cmds[string(input)]
-		if cmd == nil {
-			context.Output(INVALID_COMMAND)
-			continue
-		}
-		if err := cmd.Execute(context, arguments); err != nil {
-			context.OutputErr(err)
-		}
 	}
+}
+
+func process(context *core.Context, input []byte) bool {
+	context.Prompt()
+	var arguments []byte
+	input = bytes.TrimSpace(input)
+
+	if index := bytes.IndexByte(input, ' '); index != -1 {
+		arguments = input[index+1:]
+		input = input[:index]
+	}
+
+	if bytes.Equal(input, []byte("exit")) || bytes.Equal(input, []byte("quit")) {
+		return false
+	}
+
+	if bytes.Equal(input, []byte("it")) == false {
+		context.CloseCursor()
+	}
+
+	cmd := cmds[string(input)]
+	if cmd == nil {
+		context.Output(INVALID_COMMAND)
+	} else if err := cmd.Execute(context, arguments); err != nil {
+		context.OutputErr(err)
+	}
+	return true
 }
