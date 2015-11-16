@@ -83,6 +83,7 @@ func Run() {
 func runShell(context *core.Context, in io.Reader) {
 	reader := bufio.NewReader(in)
 	for {
+		context.Prompt()
 		input, _ := reader.ReadSlice('\n')
 		if process(context, input) == false {
 			break
@@ -91,7 +92,7 @@ func runShell(context *core.Context, in io.Reader) {
 }
 
 func process(context *core.Context, input []byte) bool {
-	context.Prompt()
+
 	var arguments []byte
 	input = bytes.TrimSpace(input)
 
