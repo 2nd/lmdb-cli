@@ -19,6 +19,7 @@ var (
 	pathFlag    = flag.String("db", "", "Relative path to lmdb file")
 	sizeFlag    = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
 	roFlag      = flag.Bool("ro", false, "open the database in read-only mode")
+	dbsFlag     = flag.Int("dbs", 0, "number of additional databases to allow")
 	commandFlag = flag.String("c", "", "command to run")
 
 	cmds = make(map[string]Command)
@@ -41,6 +42,7 @@ func init() {
 	cmds["set"] = commands.Put{}
 	cmds["stat"] = commands.Stats{}
 	cmds["stats"] = commands.Stats{}
+	cmds["use"] = commands.Use{}
 }
 
 func Run() {
@@ -68,7 +70,7 @@ func Run() {
 		promptWriter = ioutil.Discard
 	}
 
-	context := core.NewContext(*pathFlag, size, *roFlag, os.Stdout, promptWriter)
+	context := core.NewContext(*pathFlag, size, *roFlag, *dbsFlag, os.Stdout, promptWriter)
 	defer context.Close()
 	if err := context.SwitchDB(nil); err != nil {
 		log.Fatal("could not select default database: ", err)

@@ -82,7 +82,17 @@ func (t IntegrationTests) IteratesAll() {
 
 func (t IntegrationTests) Stats() {
 	t.withinShell("stats")
-	t.recorder.assert("map size: 4194304", "map size (human): 4MB", "num entries: 25", "max readers: 126", "num readers: 1", "db page size: 4096", "non-leaf pages: 0", "leaf pages: 1", "overflow pages: 0", "last page id: 7", "map tx id: 25")
+	t.recorder.assert("map size: 4194304", "map size (human): 4MB", "num entries: 25", "max readers: 126", "num readers: 0", "db page size: 4096", "non-leaf pages: 0", "leaf pages: 1", "overflow pages: 0", "last page id: 7", "map tx id: 25")
+}
+
+func (t IntegrationTests) UseErrorIfNoSize() {
+	t.withinShell("use leto", "use paul")
+	t.recorder.assert("MDB_DBS_FULL: Environment maxdbs limit reached")
+}
+
+func (t IntegrationTests) UsesDifferentDatabase() {
+	t.withinShell("use leto", "set spice flow", "use", "exists spice", "use leto", "exists spice")
+	t.recorder.assert("ok", "false", "true")
 }
 
 func (t IntegrationTests) withinShell(commands ...string) {
@@ -114,7 +124,7 @@ func NewTestContext() (*core.Context, *Recorder) {
 		panic(err)
 	}
 	recorder := NewRecorder()
-	c := core.NewContext(dbPath, 4194304, false, recorder, ioutil.Discard)
+	c := core.NewContext(dbPath, 4194304, false, 1, recorder, ioutil.Discard)
 	if err := c.SwitchDB(nil); err != nil {
 		c.Close()
 		panic(err)

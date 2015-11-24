@@ -25,14 +25,23 @@ type Cursor struct {
 	Prefix []byte
 }
 
-func NewContext(dbPath string, size uint64, ro bool, writer io.Writer, promptWriter io.Writer) *Context {
+func NewContext(dbPath string, size uint64, ro bool, dbs int, writer io.Writer, promptWriter io.Writer) *Context {
 	env, _ := mdb.NewEnv()
 	env.SetMapSize(size)
 	var openFlags uint
 	if ro {
 		openFlags |= mdb.RDONLY
 	}
+
+	if dbs > 0 {
+		if err := env.SetMaxDBs(mdb.DBI(dbs)); err != nil {
+			env.Close()
+			log.Fatal("failed to set max dbs", err)
+		}
+	}
+
 	if err := env.Open(dbPath, openFlags, 0664); err != nil {
+		env.Close()
 		log.Fatal("failed to open environment: ", err)
 	}
 	return &Context{
@@ -49,8 +58,8 @@ func (c *Context) Prompt() {
 }
 
 func (c *Context) SwitchDB(name *string) error {
-	err := c.WithinRead(func(txn *mdb.Txn) error {
-		dbi, err := txn.DBIOpen(name, 0)
+	err := c.WithinWrite(func(txn *mdb.Txn) error {
+		dbi, err := txn.DBIOpen(name, mdb.CREATE)
 		if err != nil {
 			return err
 		}
