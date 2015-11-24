@@ -39,6 +39,7 @@ func (cmd Iterate) execute(context *core.Context, first bool) (err error) {
 		}
 		context.Output(key)
 		context.Output(value)
+		context.Output(nil)
 	}
 	context.Output(SCAN_MORE)
 	return nil
