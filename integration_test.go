@@ -1,4 +1,4 @@
-package lmdbcli
+package main
 
 import (
 	"os"

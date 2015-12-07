@@ -1,5 +1,5 @@
 // a command line interface to lmdb
-package lmdbcli
+package main
 
 import (
 	"bytes"
@@ -45,7 +45,7 @@ func init() {
 	cmds["use"] = commands.Use{}
 }
 
-func Run() {
+func main() {
 	flag.Parse()
 
 	if len(*pathFlag) == 0 && len(flag.Args()) == 1 {
