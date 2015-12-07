@@ -78,6 +78,11 @@ func (t IntegrationTests) IteratesAll() {
 	t.recorder.assert("iter:0", "value-0", "", "iter:1", "value-1", "", "iter:10", "value-10", "", "iter:11", "value-11", "", "iter:12", "value-12", "", "iter:13", "value-13", "", "iter:14", "value-14", "", "iter:15", "value-15", "", "iter:16", "value-16", "", "iter:17", "value-17", "", "\"it\" for more", "iter:18", "value-18", "", "iter:19", "value-19", "", "iter:2", "value-2", "", "iter:20", "value-20", "", "iter:21", "value-21", "", "iter:22", "value-22", "", "iter:23", "value-23", "", "iter:3", "value-3", "", "iter:4", "value-4", "", "iter:5", "value-5", "", "\"it\" for more", "iter:6", "value-6", "", "iter:7", "value-7", "", "iter:8", "value-8", "", "iter:9", "value-9", "")
 }
 
+func (t IntegrationTests) Keys() {
+	t.withinShell("keys iter:1", "it", "it", "it", "it")
+	t.recorder.assert("iter:1", "iter:10", "iter:11", "iter:12", "iter:13", "iter:14", "iter:15", "iter:16", "iter:17", "iter:18", "\"it\" for more", "iter:19")
+}
+
 func (t IntegrationTests) Stats() {
 	t.withinShell("stats")
 	t.recorder.assert("map size: 4194304", "map size (human): 4MB", "num entries: 25", "max readers: 126", "num readers: 0", "db page size: 4096", "non-leaf pages: 0", "leaf pages: 1", "overflow pages: 0", "last page id: 7", "map tx id: 25")

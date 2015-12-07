@@ -38,8 +38,10 @@ func (cmd Iterate) execute(context *core.Context, first bool) (err error) {
 			return err
 		}
 		context.Output(key)
-		context.Output(value)
-		context.Output(nil)
+		if cursor.IncludeValues {
+			context.Output(value)
+			context.Output(nil)
+		}
 	}
 	context.Output(SCAN_MORE)
 	return nil

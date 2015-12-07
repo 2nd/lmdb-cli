@@ -31,8 +31,9 @@ type Context struct {
 
 type Cursor struct {
 	*mdb.Cursor
-	txn    *mdb.Txn
-	Prefix []byte
+	txn           *mdb.Txn
+	Prefix        []byte
+	IncludeValues bool
 }
 
 func NewContext(dbPath string, size uint64, ro bool, dbs int, writer io.Writer) *Context {
@@ -118,7 +119,7 @@ func (c *Context) WithinWrite(f func(*mdb.Txn) error) error {
 	return f(txn)
 }
 
-func (c *Context) PrepareCursor(prefix []byte) error {
+func (c *Context) PrepareCursor(prefix []byte, includeValues bool) error {
 	txn, err := c.BeginTxn(nil, mdb.RDONLY)
 	if err != nil {
 		return err
@@ -128,7 +129,7 @@ func (c *Context) PrepareCursor(prefix []byte) error {
 		txn.Abort()
 		return err
 	}
-	c.Cursor = &Cursor{txn: txn, Cursor: cursor, Prefix: prefix}
+	c.Cursor = &Cursor{txn: txn, Cursor: cursor, Prefix: prefix, IncludeValues: includeValues}
 	return nil
 }
 

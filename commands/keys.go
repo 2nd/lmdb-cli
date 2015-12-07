@@ -2,10 +2,10 @@ package commands
 
 import "git.2nd.io/matt/lmdb-cli/core"
 
-type Scan struct {
+type Keys struct {
 }
 
-func (cmd Scan) Execute(context *core.Context, input []byte) (err error) {
+func (cmd Keys) Execute(context *core.Context, input []byte) (err error) {
 	args, err := parseRange(input, 0, 1)
 	if err != nil {
 		return err
@@ -16,7 +16,7 @@ func (cmd Scan) Execute(context *core.Context, input []byte) (err error) {
 		prefix = args[0]
 	}
 
-	if err := context.PrepareCursor(prefix, true); err != nil {
+	if err := context.PrepareCursor(prefix, false); err != nil {
 		return err
 	}
 	return Iterate{}.execute(context, true)

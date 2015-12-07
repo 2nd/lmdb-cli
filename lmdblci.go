@@ -43,6 +43,7 @@ func init() {
 	cmds["stat"] = commands.Stats{}
 	cmds["stats"] = commands.Stats{}
 	cmds["use"] = commands.Use{}
+	cmds["keys"] = commands.Keys{}
 }
 
 func main() {
