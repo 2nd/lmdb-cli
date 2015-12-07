@@ -83,6 +83,7 @@ func Run() {
 }
 
 func runShell(context *core.Context, in io.Reader) {
+	cmds["stats"].Execute(context, nil)
 	reader := bufio.NewReader(in)
 	for {
 		context.Prompt()
