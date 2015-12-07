@@ -2,14 +2,14 @@
 package lmdbcli
 
 import (
-	"bufio"
 	"bytes"
 	"flag"
-	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
+	"strings"
+
+	"github.com/peterh/liner"
 
 	"git.2nd.io/matt/lmdb-cli/commands"
 	"git.2nd.io/matt/lmdb-cli/core"
@@ -65,37 +65,50 @@ func Run() {
 	}
 	runOne := len(*commandFlag) != 0
 
-	var promptWriter io.Writer = os.Stdout
-	if runOne {
-		promptWriter = ioutil.Discard
-	}
-
-	context := core.NewContext(*pathFlag, size, *roFlag, *dbsFlag, os.Stdout, promptWriter)
+	context := core.NewContext(*pathFlag, size, *roFlag, *dbsFlag, os.Stdout)
 	defer context.Close()
 	if err := context.SwitchDB(nil); err != nil {
 		log.Fatal("could not select default database: ", err)
 	}
 	if runOne {
 		process(context, []byte(*commandFlag))
-	} else {
-		runShell(context, os.Stdin)
+		return
 	}
+
+	context.Output([]byte("stats>"))
+	cmds["stats"].Execute(context, nil)
+	line := liner.NewLiner()
+	defer line.Close()
+	line.SetCtrlCAborts(true)
+	line.SetCompleter(func(line string) (c []string) {
+		line = strings.ToLower(line)
+		for cmd := range cmds {
+			if strings.HasPrefix(cmd, line) {
+				c = append(c, cmd)
+			}
+		}
+		return c
+	})
+
+	context.SetPrompter(line)
+	runShell(context)
 }
 
-func runShell(context *core.Context, in io.Reader) {
-	cmds["stats"].Execute(context, nil)
-	reader := bufio.NewReader(in)
+func runShell(context *core.Context) {
 	for {
-		context.Prompt()
-		input, _ := reader.ReadSlice('\n')
-		if process(context, input) == false {
+		input, err := context.Prompt()
+		if err != nil {
+			if err == liner.ErrPromptAborted {
+				break
+			}
+			context.OutputErr(err)
+		} else if process(context, []byte(input)) == false {
 			break
 		}
 	}
 }
 
 func process(context *core.Context, input []byte) bool {
-
 	var arguments []byte
 	input = bytes.TrimSpace(input)
 

@@ -1,8 +1,6 @@
 package lmdbcli
 
 import (
-	"bytes"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -87,7 +85,7 @@ func (t IntegrationTests) Stats() {
 
 func (t IntegrationTests) UseErrorIfNoSize() {
 	t.withinShell("use leto", "use paul")
-	t.recorder.assert("MDB_DBS_FULL: Environment maxdbs limit reached")
+	t.recorder.assert("DBs full. Launch with -dbs X to allow X number of databases to be opened")
 }
 
 func (t IntegrationTests) UsesDifferentDatabase() {
@@ -96,12 +94,8 @@ func (t IntegrationTests) UsesDifferentDatabase() {
 }
 
 func (t IntegrationTests) withinShell(commands ...string) {
-	in := new(bytes.Buffer)
-	for _, command := range commands {
-		in.WriteString(command + "\n")
-	}
-	in.WriteString("exit\n")
-	runShell(t.context, in)
+	t.context.SetPrompter(NewMockPrompter(commands...))
+	runShell(t.context)
 }
 
 func (t IntegrationTests) assert(key string, expected string) {
@@ -124,12 +118,33 @@ func NewTestContext() (*core.Context, *Recorder) {
 		panic(err)
 	}
 	recorder := NewRecorder()
-	c := core.NewContext(dbPath, 4194304, false, 1, recorder, ioutil.Discard)
+	c := core.NewContext(dbPath, 4194304, false, 1, recorder)
 	if err := c.SwitchDB(nil); err != nil {
 		c.Close()
 		panic(err)
 	}
 	return c, recorder
+}
+
+type MockPrompter struct {
+	c chan string
+}
+
+func NewMockPrompter(commands ...string) core.Prompter {
+	c := make(chan string, len(commands)+1)
+	for _, command := range commands {
+		c <- command + "\n"
+	}
+	c <- "exit\n"
+	return &MockPrompter{c}
+}
+
+func (m *MockPrompter) AppendHistory(line string) {
+
+}
+
+func (m *MockPrompter) Prompt(p string) (string, error) {
+	return <-m.c, nil
 }
 
 type Recorder struct {

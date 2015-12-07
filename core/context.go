@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"io"
 	"log"
 	"path"
@@ -8,15 +9,24 @@ import (
 	"github.com/szferi/gomdb"
 )
 
+var (
+	NoPromptErr = errors.New("no prompt has been configured")
+)
+
+type Prompter interface {
+	Prompt(string) (string, error)
+	AppendHistory(string)
+}
+
 type Context struct {
 	*mdb.Env
-	DBI          mdb.DBI
-	path         string
-	prompt       []byte
-	writer       io.Writer
-	promptWriter io.Writer
-	pathName     string
-	Cursor       *Cursor
+	DBI      mdb.DBI
+	path     string
+	prompt   string
+	writer   io.Writer
+	prompter Prompter
+	pathName string
+	Cursor   *Cursor
 }
 
 type Cursor struct {
@@ -25,7 +35,7 @@ type Cursor struct {
 	Prefix []byte
 }
 
-func NewContext(dbPath string, size uint64, ro bool, dbs int, writer io.Writer, promptWriter io.Writer) *Context {
+func NewContext(dbPath string, size uint64, ro bool, dbs int, writer io.Writer) *Context {
 	env, _ := mdb.NewEnv()
 	env.SetMapSize(size)
 	var openFlags uint
@@ -45,16 +55,26 @@ func NewContext(dbPath string, size uint64, ro bool, dbs int, writer io.Writer, 
 		log.Fatal("failed to open environment: ", err)
 	}
 	return &Context{
-		Env:          env,
-		path:         dbPath,
-		writer:       writer,
-		promptWriter: promptWriter,
-		pathName:     path.Base(dbPath),
+		Env:      env,
+		path:     dbPath,
+		writer:   writer,
+		pathName: path.Base(dbPath),
 	}
 }
 
-func (c *Context) Prompt() {
-	c.promptWriter.Write(c.prompt)
+func (c *Context) SetPrompter(Prompter Prompter) {
+	c.prompter = Prompter
+}
+
+func (c *Context) Prompt() (string, error) {
+	if c.prompter == nil {
+		return "", NoPromptErr
+	}
+	input, err := c.prompter.Prompt(c.prompt)
+	if err != nil {
+		c.prompter.AppendHistory(input)
+	}
+	return input, err
 }
 
 func (c *Context) SwitchDB(name *string) error {
@@ -76,7 +96,7 @@ func (c *Context) SwitchDB(name *string) error {
 	} else {
 		n = *name
 	}
-	c.prompt = []byte(c.pathName + ":" + n + "> ")
+	c.prompt = c.pathName + ":" + n + "> "
 	return nil
 }
 
