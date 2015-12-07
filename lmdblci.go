@@ -17,7 +17,8 @@ import (
 
 var (
 	pathFlag    = flag.String("db", "", "Relative path to lmdb file")
-	sizeFlag    = flag.Float64("size", 2, "factor to allocate for growth or shrinkage")
+	sizeFlag    = flag.Int("size", 32*1024*1024, "size in bytes to allocate for new database")
+	growthFlag  = flag.Float64("growth", 1, "factor to grow/shrink an existing database")
 	roFlag      = flag.Bool("ro", false, "open the database in read-only mode")
 	dbsFlag     = flag.Int("dbs", 0, "number of additional databases to allow")
 	commandFlag = flag.String("c", "", "command to run")
@@ -57,13 +58,16 @@ func main() {
 		log.Fatal("-db must be specified")
 	}
 
-	size := uint64(1024 * 1024 * 32)
+	size := uint64(*sizeFlag)
 	if stat, err := os.Stat(path.Join(*pathFlag, "data.mdb")); err != nil {
 		if os.IsNotExist(err) == false {
 			log.Fatal("failed to stat data.mdb file: ", err)
 		}
+		if err := os.Mkdir(*pathFlag, 0744); err != nil {
+			log.Fatal("failed to make directory", err)
+		}
 	} else {
-		size = uint64(float64(stat.Size()) * *sizeFlag)
+		size = uint64(float64(stat.Size()) * *growthFlag)
 	}
 	runOne := len(*commandFlag) != 0
 
