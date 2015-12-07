@@ -6,7 +6,7 @@ var helpText = []byte(`
   del KEY        - removes the key/value
   get KEY FORMAT - gets the value. FORMAT is optional or 'json'
   set KEY        - creates or overwrites the key with the specified value
-                   (aliases: set)
+                   (aliases: put)
   exists KEY     - checks if the key exists
 
   scan PREFIX    - returns key & values where keys match the optional prefix
@@ -14,11 +14,11 @@ var helpText = []byte(`
   it             - goes to the next page of a scan/keys result
 
   info           - returns information on the database
-                   (aslies: stat, stats)
+                   (aliases: stat, stats)
   use DB         - switches to a named database. If DB is omitted, switches back
                    to the default database.
 
-  exit           - exists
+  exit           - exits the program
                   (aliases: quit, CTRL-C)
 `)
 
