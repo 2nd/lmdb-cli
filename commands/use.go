@@ -1,6 +1,15 @@
 package commands
 
-import "git.2nd.io/matt/lmdb-cli/core"
+import (
+	"errors"
+
+	"git.2nd.io/matt/lmdb-cli/core"
+	"github.com/szferi/gomdb"
+)
+
+var (
+	DbsFullErr = errors.New("DBs full. Launch with -dbs X to allow X number of databases to be opened")
+)
 
 type Use struct {
 }
@@ -15,5 +24,9 @@ func (cmd Use) Execute(context *core.Context, input []byte) (err error) {
 		n := string(args[0])
 		name = &n
 	}
-	return context.SwitchDB(name)
+	err = context.SwitchDB(name)
+	if err == mdb.DbsFull {
+		return DbsFullErr
+	}
+	return err
 }
