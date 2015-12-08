@@ -46,6 +46,7 @@ func init() {
 	cmds["use"] = commands.Use{}
 	cmds["keys"] = commands.Keys{}
 	cmds["help"] = commands.Help{}
+	cmds["ascii"] = commands.Ascii{}
 }
 
 func main() {
@@ -81,6 +82,7 @@ func main() {
 		return
 	}
 
+	cmds["ascii"].Execute(context, nil)
 	context.Output([]byte("stats>"))
 	cmds["stats"].Execute(context, nil)
 	line := liner.NewLiner()
