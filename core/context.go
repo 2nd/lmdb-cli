@@ -72,7 +72,7 @@ func (c *Context) Prompt() (string, error) {
 		return "", NoPromptErr
 	}
 	input, err := c.prompter.Prompt(c.prompt)
-	if err != nil {
+	if err == nil {
 		c.prompter.AppendHistory(input)
 	}
 	return input, err
