@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"git.2nd.io/matt/lmdb-cli/core"
+	"github.com/2nd/lmdb-cli/core"
 	"github.com/szferi/gomdb"
 )
 

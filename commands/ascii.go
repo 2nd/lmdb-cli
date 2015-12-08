@@ -1,6 +1,6 @@
 package commands
 
-import "git.2nd.io/matt/lmdb-cli/core"
+import "github.com/2nd/lmdb-cli/core"
 
 var ascii = []byte(`____________  __________________       ______________________
 ___  /___   |/  /__  __ \__  __ )      __  ____/__  /____  _/

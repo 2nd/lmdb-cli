@@ -1,6 +1,6 @@
 package commands
 
-import "git.2nd.io/matt/lmdb-cli/core"
+import "github.com/2nd/lmdb-cli/core"
 
 var helpText = []byte(`
   del KEY        - removes the key/value

@@ -6,7 +6,7 @@ import (
 	"path"
 	"testing"
 
-	"git.2nd.io/matt/lmdb-cli/core"
+	"github.com/2nd/lmdb-cli/core"
 	. "github.com/karlseguin/expect"
 	"github.com/szferi/gomdb"
 )
