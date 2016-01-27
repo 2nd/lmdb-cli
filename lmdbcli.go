@@ -117,6 +117,10 @@ func runShell(context *core.Context) {
 }
 
 func process(context *core.Context, input []byte) bool {
+	if len(input) == 0 {
+		return true
+	}
+
 	var arguments []byte
 	input = bytes.TrimSpace(input)
 
