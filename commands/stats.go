@@ -18,7 +18,7 @@ func (cmd Stats) Execute(context *core.Context, input []byte) (err error) {
 	if err != nil {
 		return err
 	}
-	context.Output(labelUint("map size", info.MapSize))
+	context.Output(labelInt("map size", info.MapSize))
 	if readable := readableBytes(info.MapSize); len(readable) != 0 {
 		context.Output(labelString("map size (human)", readable))
 	}
@@ -30,7 +30,7 @@ func (cmd Stats) Execute(context *core.Context, input []byte) (err error) {
 	context.Output(labelUint("non-leaf pages", stats.BranchPages))
 	context.Output(labelUint("leaf pages", stats.LeafPages))
 	context.Output(labelUint("overflow pages", stats.OverflowPages))
-	context.Output(labelUint("last page id", info.LastPNO))
-	context.Output(labelUint("map tx id", info.LastTxnID))
+	context.Output(labelInt("last page id", info.LastPNO))
+	context.Output(labelInt("map tx id", info.LastTxnID))
 	return nil
 }

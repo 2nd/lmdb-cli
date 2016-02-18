@@ -2,7 +2,7 @@ package commands
 
 import (
 	"github.com/2nd/lmdb-cli/core"
-	"github.com/szferi/gomdb"
+	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
 type Exists struct {
@@ -13,12 +13,12 @@ func (cmd Exists) Execute(context *core.Context, input []byte) (err error) {
 	if err != nil {
 		return err
 	}
-	err = context.WithinRead(func(txn *mdb.Txn) error {
+	err = context.WithinRead(func(txn *lmdb.Txn) error {
 		_, err = txn.Get(context.DBI, args[0])
 		return err
 	})
 
-	if err == mdb.NotFound {
+	if lmdb.IsNotFound(err) {
 		context.Output(FALSE)
 		return nil
 	}

@@ -6,7 +6,7 @@ import (
 	"errors"
 
 	"github.com/2nd/lmdb-cli/core"
-	"github.com/szferi/gomdb"
+	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
 var (
@@ -26,7 +26,7 @@ func (cmd Get) Execute(context *core.Context, input []byte) (err error) {
 	}
 
 	var value []byte
-	context.WithinRead(func(txn *mdb.Txn) error {
+	context.WithinRead(func(txn *lmdb.Txn) error {
 		value, err = txn.Get(context.DBI, args[0])
 		return nil
 	})

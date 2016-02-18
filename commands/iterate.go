@@ -4,7 +4,7 @@ import (
 	"bytes"
 
 	"github.com/2nd/lmdb-cli/core"
-	"github.com/szferi/gomdb"
+	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
 type Iterate struct {
@@ -23,13 +23,13 @@ func (cmd Iterate) execute(context *core.Context, first bool) (err error) {
 		var err error
 		var key, value []byte
 		if first && cursor.Prefix != nil {
-			key, value, err = cursor.Get(cursor.Prefix, nil, mdb.SET_RANGE)
+			key, value, err = cursor.Get(cursor.Prefix, nil, lmdb.SetRange)
 			first = false
 		} else {
-			key, value, err = cursor.Get(nil, nil, mdb.NEXT)
+			key, value, err = cursor.Get(nil, nil, lmdb.Next)
 		}
 
-		if err == mdb.NotFound || (cursor.Prefix != nil && !bytes.HasPrefix(key, cursor.Prefix)) {
+		if lmdb.IsNotFound(err) || (cursor.Prefix != nil && !bytes.HasPrefix(key, cursor.Prefix)) {
 			context.CloseCursor()
 			return nil
 		}

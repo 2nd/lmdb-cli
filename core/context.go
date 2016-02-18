@@ -6,7 +6,7 @@ import (
 	"log"
 	"path"
 
-	"github.com/szferi/gomdb"
+	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
 var (
@@ -19,8 +19,8 @@ type Prompter interface {
 }
 
 type Context struct {
-	*mdb.Env
-	DBI      mdb.DBI
+	*lmdb.Env
+	DBI      lmdb.DBI
 	path     string
 	prompt   string
 	writer   io.Writer
@@ -30,22 +30,25 @@ type Context struct {
 }
 
 type Cursor struct {
-	*mdb.Cursor
-	txn           *mdb.Txn
+	*lmdb.Cursor
+	txn           *lmdb.Txn
 	Prefix        []byte
 	IncludeValues bool
 }
 
-func NewContext(dbPath string, size uint64, ro bool, dbs int, writer io.Writer) *Context {
-	env, _ := mdb.NewEnv()
+func NewContext(dbPath string, size int64, ro bool, dbs int, writer io.Writer) *Context {
+	env, err := lmdb.NewEnv()
+	if err != nil {
+		log.Fatal("failed to create env", err)
+	}
 	env.SetMapSize(size)
 	var openFlags uint
 	if ro {
-		openFlags |= mdb.RDONLY
+		openFlags |= lmdb.Readonly
 	}
 
 	if dbs > 0 {
-		if err := env.SetMaxDBs(mdb.DBI(dbs)); err != nil {
+		if err := env.SetMaxDBs(dbs); err != nil {
 			env.Close()
 			log.Fatal("failed to set max dbs", err)
 		}
@@ -78,9 +81,16 @@ func (c *Context) Prompt() (string, error) {
 	return input, err
 }
 
-func (c *Context) SwitchDB(name *string) error {
-	err := c.WithinWrite(func(txn *mdb.Txn) error {
-		dbi, err := txn.DBIOpen(name, mdb.CREATE)
+func (c *Context) SwitchDB(name string) error {
+	err := c.WithinWrite(func(txn *lmdb.Txn) error {
+		var dbi lmdb.DBI
+		var err error
+		if len(name) == 0 {
+			dbi, err = txn.OpenRoot(lmdb.Create)
+		} else {
+			dbi, err = txn.OpenDBI(name, lmdb.Create)
+		}
+
 		if err != nil {
 			return err
 		}
@@ -91,18 +101,16 @@ func (c *Context) SwitchDB(name *string) error {
 		return err
 	}
 
-	var n string
-	if name == nil {
+	n := name
+	if len(n) == 0 {
 		n = "0"
-	} else {
-		n = *name
 	}
 	c.prompt = c.pathName + ":" + n + "> "
 	return nil
 }
 
-func (c *Context) WithinRead(f func(*mdb.Txn) error) error {
-	txn, err := c.BeginTxn(nil, mdb.RDONLY)
+func (c *Context) WithinRead(f func(*lmdb.Txn) error) error {
+	txn, err := c.BeginTxn(nil, lmdb.Readonly)
 	if err != nil {
 		return err
 	}
@@ -110,7 +118,7 @@ func (c *Context) WithinRead(f func(*mdb.Txn) error) error {
 	return f(txn)
 }
 
-func (c *Context) WithinWrite(f func(*mdb.Txn) error) error {
+func (c *Context) WithinWrite(f func(*lmdb.Txn) error) error {
 	txn, err := c.BeginTxn(nil, 0)
 	if err != nil {
 		return err
@@ -120,11 +128,11 @@ func (c *Context) WithinWrite(f func(*mdb.Txn) error) error {
 }
 
 func (c *Context) PrepareCursor(prefix []byte, includeValues bool) error {
-	txn, err := c.BeginTxn(nil, mdb.RDONLY)
+	txn, err := c.BeginTxn(nil, lmdb.Readonly)
 	if err != nil {
 		return err
 	}
-	cursor, err := txn.CursorOpen(c.DBI)
+	cursor, err := txn.OpenCursor(c.DBI)
 	if err != nil {
 		txn.Abort()
 		return err

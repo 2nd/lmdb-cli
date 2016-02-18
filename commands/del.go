@@ -2,7 +2,7 @@ package commands
 
 import (
 	"github.com/2nd/lmdb-cli/core"
-	"github.com/szferi/gomdb"
+	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
 type Del struct {
@@ -13,10 +13,10 @@ func (cmd Del) Execute(context *core.Context, input []byte) (err error) {
 	if err != nil {
 		return err
 	}
-	err = context.WithinWrite(func(txn *mdb.Txn) error {
+	err = context.WithinWrite(func(txn *lmdb.Txn) error {
 		return txn.Del(context.DBI, args[0], nil)
 	})
-	if err == mdb.NotFound {
+	if lmdb.IsNotFound(err) {
 		context.Output(FALSE)
 		return nil
 	}

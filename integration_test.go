@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/2nd/lmdb-cli/core"
+	"github.com/bmatsuo/lmdb-go/lmdb"
 	. "github.com/karlseguin/expect"
-	"github.com/szferi/gomdb"
 )
 
 type IntegrationTests struct {
@@ -104,7 +104,7 @@ func (t IntegrationTests) withinShell(commands ...string) {
 }
 
 func (t IntegrationTests) assert(key string, expected string) {
-	t.context.WithinRead(func(txn *mdb.Txn) error {
+	t.context.WithinRead(func(txn *lmdb.Txn) error {
 		actual, err := txn.Get(t.context.DBI, []byte(key))
 		if err != nil {
 			panic(err)
@@ -124,7 +124,7 @@ func NewTestContext() (*core.Context, *Recorder) {
 	}
 	recorder := NewRecorder()
 	c := core.NewContext(dbPath, 4194304, false, 1, recorder)
-	if err := c.SwitchDB(nil); err != nil {
+	if err := c.SwitchDB(""); err != nil {
 		c.Close()
 		panic(err)
 	}

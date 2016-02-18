@@ -59,7 +59,7 @@ func main() {
 		log.Fatal("-db must be specified")
 	}
 
-	size := uint64(*sizeFlag)
+	size := int64(*sizeFlag)
 	if stat, err := os.Stat(path.Join(*pathFlag, "data.mdb")); err != nil {
 		if os.IsNotExist(err) == false {
 			log.Fatal("failed to stat data.mdb file: ", err)
@@ -68,13 +68,13 @@ func main() {
 			log.Fatal("failed to make directory", err)
 		}
 	} else {
-		size = uint64(float64(stat.Size()) * *growthFlag)
+		size = int64(float64(stat.Size()) * *growthFlag)
 	}
 	runOne := len(*commandFlag) != 0
 
 	context := core.NewContext(*pathFlag, size, *roFlag, *dbsFlag, os.Stdout)
 	defer context.Close()
-	if err := context.SwitchDB(nil); err != nil {
+	if err := context.SwitchDB(""); err != nil {
 		log.Fatal("could not select default database: ", err)
 	}
 	if runOne {

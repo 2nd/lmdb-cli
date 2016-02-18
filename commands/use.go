@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/2nd/lmdb-cli/core"
-	"github.com/szferi/gomdb"
+	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
 var (
@@ -19,13 +19,12 @@ func (cmd Use) Execute(context *core.Context, input []byte) (err error) {
 	if err != nil {
 		return err
 	}
-	var name *string
+	var name string
 	if len(args) == 1 {
-		n := string(args[0])
-		name = &n
+		name = string(args[0])
 	}
 	err = context.SwitchDB(name)
-	if err == mdb.DbsFull {
+	if lmdb.IsErrno(err, lmdb.DBsFull) {
 		return DbsFullErr
 	}
 	return err
