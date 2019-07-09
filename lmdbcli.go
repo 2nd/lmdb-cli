@@ -17,6 +17,7 @@ import (
 
 var (
 	pathFlag    = flag.String("db", "", "Relative path to lmdb file")
+	nameFlag    = flag.String("name", "", "database name to open")
 	sizeFlag    = flag.Int("size", 32*1024*1024, "size in bytes to allocate for new database")
 	growthFlag  = flag.Float64("growth", 1, "factor to grow/shrink an existing database")
 	roFlag      = flag.Bool("ro", false, "open the database in read-only mode")
@@ -74,7 +75,7 @@ func main() {
 
 	context := core.NewContext(*pathFlag, size, *roFlag, *dbsFlag, os.Stdout)
 	defer context.Close()
-	if err := context.SwitchDB(""); err != nil {
+	if err := context.SwitchDB(*nameFlag); err != nil {
 		log.Fatal("could not select default database: ", err)
 	}
 	if runOne {
