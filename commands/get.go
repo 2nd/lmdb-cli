@@ -3,6 +3,7 @@ package commands
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/hex"
 	"errors"
 
 	"github.com/2nd/lmdb-cli/core"
@@ -10,7 +11,7 @@ import (
 )
 
 var (
-	GetFormatErr = errors.New("second argument must be 'json'")
+	GetFormatErr = errors.New("second argument must be 'json' or 'hex'")
 )
 
 type Get struct {
@@ -20,9 +21,6 @@ func (cmd Get) Execute(context *core.Context, input []byte) (err error) {
 	args, err := parseRange(input, 1, 2)
 	if err != nil {
 		return err
-	}
-	if len(args) == 2 && bytes.Equal(args[1], []byte("json")) == false {
-		return GetFormatErr
 	}
 
 	var value []byte
@@ -36,12 +34,19 @@ func (cmd Get) Execute(context *core.Context, input []byte) (err error) {
 	}
 
 	if len(args) == 2 {
-		var prettyData bytes.Buffer
-		if err := json.Indent(&prettyData, value, "", "  "); err != nil {
-			return err
+		if bytes.Equal(args[1], []byte("json")) {
+			var prettyData bytes.Buffer
+			if err := json.Indent(&prettyData, value, "", "  "); err != nil {
+				return err
+			}
+			value = prettyData.Bytes()
+		} else if bytes.Equal(args[1], []byte("hex")) {
+			value = []byte(hex.Dump(value))
+		} else {
+			return GetFormatErr
 		}
-		value = prettyData.Bytes()
 	}
+
 	context.Output(value)
 	return nil
 }
