@@ -8,21 +8,13 @@ jobs:
   releases-matrix:
     name: Release Go Binary
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        # build and publish in parallel: linux/386, linux/amd64, windows/386, windows/amd64, darwin/amd64
-        goos: [linux, windows, darwin]
-        goarch: ["386", amd64]
-        exclude:
-          - goarch: "386"
-            goos: darwin
     steps:
     - uses: actions/checkout@v2
     - uses: wangyoucao577/go-release-action@v1.16
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        goos: ${{ matrix.goos }}
-        goarch: ${{ matrix.goarch }}
+        goos: "linux"
+        goarch: "amd64"
         goversion: "https://dl.google.com/go/go1.16.3.linux-amd64.tar.gz"
         binary_name: "lmdb-cli"
         extra_files: license readme.md
