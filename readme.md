@@ -20,6 +20,7 @@ Alternatively, the `-db` flag can be specified.
 - `ro`: Opens the database in read-only mode
 - `dbs #`: Sets the maximum number of named databases
 - `c COMMAND`: executes the specified command without entering the shell
+- `dir=false`: Open the database with `MDB_NOSUBDIR`
 
 ## Shell Commands
 

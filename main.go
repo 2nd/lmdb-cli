@@ -21,6 +21,7 @@ var (
 	sizeFlag    = flag.Int("size", 32*1024*1024, "size in bytes to allocate for new database")
 	growthFlag  = flag.Float64("growth", 1, "factor to grow/shrink an existing database")
 	roFlag      = flag.Bool("ro", false, "open the database in read-only mode")
+	dir         = flag.Bool("dir", true, "path given is the directory (when false, uses MDB_NOSUBDIR)")
 	dbsFlag     = flag.Int("dbs", 0, "number of additional databases to allow")
 	commandFlag = flag.String("c", "", "command to run")
 
@@ -60,20 +61,27 @@ func main() {
 		log.Fatal("-db must be specified")
 	}
 
+	dataPath := *pathFlag
 	size := int64(*sizeFlag)
-	if stat, err := os.Stat(path.Join(*pathFlag, "data.mdb")); err != nil {
+
+	if *dir {
+		dataPath = path.Join(dataPath, "data.mdb")
+	}
+	if stat, err := os.Stat(dataPath); err != nil {
 		if os.IsNotExist(err) == false {
 			log.Fatal("failed to stat data.mdb file: ", err)
 		}
-		if err := os.Mkdir(*pathFlag, 0744); err != nil {
-			log.Fatal("failed to make directory", err)
+		if *dir {
+			if err := os.Mkdir(*pathFlag, 0744); err != nil {
+				log.Fatal("failed to make directory", err)
+			}
 		}
 	} else {
 		size = int64(float64(stat.Size()) * *growthFlag)
 	}
 	runOne := len(*commandFlag) != 0
 
-	context := core.NewContext(*pathFlag, size, *roFlag, *dbsFlag, os.Stdout)
+	context := core.NewContext(*pathFlag, size, *roFlag, *dir, *dbsFlag, os.Stdout)
 	defer context.Close()
 	if err := context.SwitchDB(*nameFlag); err != nil {
 		log.Fatal("could not select default database: ", err)

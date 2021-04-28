@@ -36,7 +36,7 @@ type Cursor struct {
 	IncludeValues bool
 }
 
-func NewContext(dbPath string, size int64, ro bool, dbs int, writer io.Writer) *Context {
+func NewContext(dbPath string, size int64, ro bool, dir bool, dbs int, writer io.Writer) *Context {
 	env, err := lmdb.NewEnv()
 	if err != nil {
 		log.Fatal("failed to create env", err)
@@ -45,6 +45,9 @@ func NewContext(dbPath string, size int64, ro bool, dbs int, writer io.Writer) *
 	var openFlags uint
 	if ro {
 		openFlags |= lmdb.Readonly
+	}
+	if !dir {
+		openFlags |= lmdb.NoSubdir
 	}
 
 	if dbs > 0 {
