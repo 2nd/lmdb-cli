@@ -2,11 +2,12 @@ package commands
 
 import (
 	"bytes"
-	"encoding/json"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 
-	"github.com/2nd/lmdb-cli/core"
+	"lmdb-cli/core"
+
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 

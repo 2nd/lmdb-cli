@@ -3,7 +3,8 @@ package commands
 import (
 	"bytes"
 
-	"github.com/2nd/lmdb-cli/core"
+	"lmdb-cli/core"
+
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
