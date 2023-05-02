@@ -20,13 +20,15 @@ type Prompter interface {
 
 type Context struct {
 	*lmdb.Env
-	DBI      lmdb.DBI
-	path     string
-	prompt   string
-	writer   io.Writer
-	prompter Prompter
-	pathName string
-	Cursor   *Cursor
+	DBI       lmdb.DBI
+	path      string
+	prompt    string
+	writer    io.Writer
+	prompter  Prompter
+	pathName  string
+	Cursor    *Cursor
+	HexKeys   bool
+	HexValues bool
 }
 
 type Cursor struct {
@@ -36,7 +38,7 @@ type Cursor struct {
 	IncludeValues bool
 }
 
-func NewContext(dbPath string, size int64, ro bool, dir bool, dbs int, writer io.Writer) *Context {
+func NewContext(dbPath string, size int64, ro bool, dir bool, dbs int, writer io.Writer, hexKeys, hexValues bool) *Context {
 	env, err := lmdb.NewEnv()
 	if err != nil {
 		log.Fatal("failed to create env", err)
@@ -62,10 +64,12 @@ func NewContext(dbPath string, size int64, ro bool, dir bool, dbs int, writer io
 		log.Fatal("failed to open environment: ", err)
 	}
 	return &Context{
-		Env:      env,
-		path:     dbPath,
-		writer:   writer,
-		pathName: path.Base(dbPath),
+		Env:       env,
+		path:      dbPath,
+		writer:    writer,
+		pathName:  path.Base(dbPath),
+		HexKeys:   hexKeys,
+		HexValues: hexValues,
 	}
 }
 

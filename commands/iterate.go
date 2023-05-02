@@ -2,7 +2,7 @@ package commands
 
 import (
 	"bytes"
-
+	"encoding/hex"
 	"lmdb-cli/core"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
@@ -38,8 +38,16 @@ func (cmd Iterate) execute(context *core.Context, first bool) (err error) {
 			context.CloseCursor()
 			return err
 		}
+
+		if context.HexKeys {
+			key = []byte(hex.EncodeToString(key))
+		}
 		context.Output(key)
+
 		if cursor.IncludeValues {
+			if context.HexValues {
+				value = []byte(hex.EncodeToString(value))
+			}
 			context.Output(value)
 			context.Output(nil)
 		}

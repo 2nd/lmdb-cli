@@ -4,26 +4,27 @@ package main
 import (
 	"bytes"
 	"flag"
+	"lmdb-cli/commands"
+	"lmdb-cli/core"
 	"log"
 	"os"
 	"path"
 	"strings"
 
 	"github.com/peterh/liner"
-
-	"lmdb-cli/commands"
-	"lmdb-cli/core"
 )
 
 var (
-	pathFlag    = flag.String("db", "", "Relative path to lmdb file")
-	nameFlag    = flag.String("name", "", "database name to open")
-	sizeFlag    = flag.Int("size", 32*1024*1024, "size in bytes to allocate for new database")
-	growthFlag  = flag.Float64("growth", 1, "factor to grow/shrink an existing database")
-	roFlag      = flag.Bool("ro", false, "open the database in read-only mode")
-	dir         = flag.Bool("dir", true, "path given is the directory (when false, uses MDB_NOSUBDIR)")
-	dbsFlag     = flag.Int("dbs", 0, "number of additional databases to allow")
-	commandFlag = flag.String("c", "", "command to run")
+	pathFlag      = flag.String("db", "", "Relative path to lmdb file")
+	nameFlag      = flag.String("name", "", "database name to open")
+	sizeFlag      = flag.Int("size", 32*1024*1024, "size in bytes to allocate for new database")
+	growthFlag    = flag.Float64("growth", 1, "factor to grow/shrink an existing database")
+	roFlag        = flag.Bool("ro", false, "open the database in read-only mode")
+	dir           = flag.Bool("dir", true, "path given is the directory (when false, uses MDB_NOSUBDIR)")
+	dbsFlag       = flag.Int("dbs", 0, "number of additional databases to allow")
+	hexKeysFlag   = flag.Bool("hex-keys", false, "if keys should be printed as hex")
+	hexValuesFlag = flag.Bool("hex-values", false, "if values should be printed as hex")
+	commandFlag   = flag.String("c", "", "command to run")
 
 	cmds = make(map[string]Command)
 
@@ -81,7 +82,7 @@ func main() {
 	}
 	runOne := len(*commandFlag) != 0
 
-	context := core.NewContext(*pathFlag, size, *roFlag, *dir, *dbsFlag, os.Stdout)
+	context := core.NewContext(*pathFlag, size, *roFlag, *dir, *dbsFlag, os.Stdout, *hexKeysFlag, *hexValuesFlag)
 	defer context.Close()
 	if err := context.SwitchDB(*nameFlag); err != nil {
 		log.Fatal("could not select default database: ", err)
