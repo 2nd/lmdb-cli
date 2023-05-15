@@ -1,6 +1,6 @@
 # A command line utility for LMDB
 
-A command line utility for [LMDB](http://symas.com/mdb/) aimed at providing a simple way to explore an LMDB database.
+A command line utility for [LMDB](http://symas.com/lmdb/) aimed at providing a simple way to explore an LMDB database.
 
 ## Usage
 
