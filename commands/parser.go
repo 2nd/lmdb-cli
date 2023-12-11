@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"bytes"
+	"encoding/hex"
 	"errors"
 	"unicode"
 )
@@ -25,6 +27,7 @@ func parseRange(in []byte, min int, max int) ([][]byte, error) {
 	if len(args) > max {
 		return nil, TooManyArgumentsErr
 	}
+
 	return args, nil
 }
 
@@ -35,6 +38,16 @@ func parse(in []byte) [][]byte {
 	var results [][]byte
 	var arg []byte
 	state := STATE_NONE
+
+	pushArg := func() {
+		if state == STATE_WORD && bytes.HasPrefix(arg, []byte("0x")) {
+			if n, err := hex.Decode(arg[2:], arg[2:]); err == nil {
+				arg = arg[2 : 2+n]
+			}
+		}
+		results = append(results, arg)
+	}
+
 	for _, b := range in {
 		switch state {
 		case STATE_NONE:
@@ -49,7 +62,7 @@ func parse(in []byte) [][]byte {
 			state = STATE_QUOTE
 		case STATE_WORD:
 			if isWhiteSpace(b) {
-				results = append(results, arg)
+				pushArg()
 				arg = make([]byte, 0)
 				state = STATE_NONE
 			} else {
@@ -59,7 +72,7 @@ func parse(in []byte) [][]byte {
 			if b == '\\' {
 				state = STATE_ESCAPED
 			} else if isQuote(b) {
-				results = append(results, arg)
+				pushArg()
 				arg = make([]byte, 0)
 				state = STATE_NONE
 			} else {
@@ -68,7 +81,7 @@ func parse(in []byte) [][]byte {
 		}
 	}
 	if len(arg) != 0 {
-		results = append(results, arg)
+		pushArg()
 	}
 	return results
 }
