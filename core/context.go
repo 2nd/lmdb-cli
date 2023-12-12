@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/hex"
 	"errors"
 	"io"
 	"log"
@@ -9,9 +10,7 @@ import (
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
-var (
-	NoPromptErr = errors.New("no prompt has been configured")
-)
+var NoPromptErr = errors.New("no prompt has been configured")
 
 type Prompter interface {
 	Prompt(string) (string, error)
@@ -158,7 +157,19 @@ func (c *Context) Close() {
 }
 
 func (c *Context) Output(data []byte) {
-	c.writer.Write(data)
+	n := len(data)
+	readableCharacters := 0
+	for _, b := range data {
+		if b >= 33 && b <= 126 {
+			readableCharacters++
+		}
+	}
+	if readableCharacters > n*2/3 {
+		c.writer.Write(data)
+	} else {
+		c.writer.Write([]byte("0x" + hex.EncodeToString(data)))
+	}
+
 	c.writer.Write([]byte{'\n'})
 }
 
