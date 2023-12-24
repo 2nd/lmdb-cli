@@ -2,7 +2,7 @@ package commands
 
 import "lmdb-cli/core"
 
-var helpText = []byte(`
+var helpText = `
   del KEY        - removes the key/value
   get KEY FORMAT - gets the value. FORMAT is optional or 'json' or 'hex'
   set KEY        - creates or overwrites the key with the specified value
@@ -20,12 +20,11 @@ var helpText = []byte(`
 
   exit           - exits the program
                   (aliases: quit, CTRL-C)
-`)
+`
 
-type Help struct {
-}
+type Help struct{}
 
 func (cmd Help) Execute(context *core.Context, input []byte) (err error) {
-	context.Output(helpText)
+	context.OutputString(helpText)
 	return nil
 }
