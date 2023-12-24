@@ -163,7 +163,8 @@ func (c *Context) OutputString(data string) {
 
 func (c *Context) Output(data []byte) {
 	if len(data) == 0 {
-		c.writer.Write(data)
+		c.writer.Write([]byte{'\n'})
+		return
 	}
 
 	n := len(data)
