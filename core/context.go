@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"path"
+	"strconv"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -156,7 +157,15 @@ func (c *Context) Close() {
 	c.Env.Close()
 }
 
+func (c *Context) OutputString(data string) {
+	c.writer.Write([]byte(data))
+}
+
 func (c *Context) Output(data []byte) {
+	if len(data) == 0 {
+		c.writer.Write(data)
+	}
+
 	n := len(data)
 	readableCharacters := 0
 	for _, b := range data {
@@ -165,6 +174,11 @@ func (c *Context) Output(data []byte) {
 		}
 	}
 	if readableCharacters > n*2/3 {
+		sdata := string(data)
+		quoted := strconv.QuoteToASCII(sdata)
+		if quoted[1:len(quoted)-1] != sdata {
+			data = []byte(quoted)
+		}
 		c.writer.Write(data)
 	} else {
 		c.writer.Write([]byte("0x" + hex.EncodeToString(data)))

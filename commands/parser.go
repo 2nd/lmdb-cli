@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"strconv"
 	"unicode"
 )
 
@@ -11,7 +12,6 @@ const (
 	STATE_NONE int = iota
 	STATE_WORD
 	STATE_QUOTE
-	STATE_ESCAPED
 )
 
 var (
@@ -45,6 +45,7 @@ func parse(in []byte) [][]byte {
 				arg = arg[2 : 2+n]
 			}
 		}
+
 		results = append(results, arg)
 	}
 
@@ -53,13 +54,11 @@ func parse(in []byte) [][]byte {
 		case STATE_NONE:
 			if isQuote(b) {
 				state = STATE_QUOTE
+				arg = append(arg, '"')
 			} else if !isWhiteSpace(b) {
 				arg = append(arg, b)
 				state = STATE_WORD
 			}
-		case STATE_ESCAPED:
-			arg = append(arg, b)
-			state = STATE_QUOTE
 		case STATE_WORD:
 			if isWhiteSpace(b) {
 				pushArg()
@@ -69,9 +68,12 @@ func parse(in []byte) [][]byte {
 				arg = append(arg, b)
 			}
 		case STATE_QUOTE:
-			if b == '\\' {
-				state = STATE_ESCAPED
-			} else if isQuote(b) {
+			if isQuote(b) {
+				arg = append(arg, '"')
+				unquoted, err := strconv.Unquote(string(arg))
+				if err == nil {
+					arg = []byte(unquoted)
+				}
 				pushArg()
 				arg = make([]byte, 0)
 				state = STATE_NONE
