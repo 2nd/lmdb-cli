@@ -160,7 +160,7 @@ func (c *Context) Output(data []byte) {
 	n := len(data)
 	readableCharacters := 0
 	for _, b := range data {
-		if b >= 33 && b <= 126 {
+		if b >= 32 && b <= 126 || b == 10 {
 			readableCharacters++
 		}
 	}
