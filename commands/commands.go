@@ -6,7 +6,7 @@ var (
 	OK        = []byte("ok")
 	TRUE      = []byte("true")
 	FALSE     = []byte("false")
-	SCAN_MORE = []byte(`"it" for more`)
+	SCAN_MORE = []byte(`'it' for more`)
 
 	units = []string{"KB", "MB", "GB", "TB", "PB"}
 )
