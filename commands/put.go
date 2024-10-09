@@ -10,7 +10,7 @@ type Put struct {
 }
 
 func (cmd Put) Execute(context *core.Context, input []byte) (err error) {
-	args, err := parseRange(input, 2, 2)
+	args, err := parseGlob(input, 2, 2)
 	if err != nil {
 		return err
 	}

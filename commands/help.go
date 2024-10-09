@@ -5,7 +5,7 @@ import "lmdb-cli/core"
 var helpText = `
   del KEY        - removes the key/value
   get KEY FORMAT - gets the value. FORMAT is optional or 'json' or 'hex'
-  set KEY        - creates or overwrites the key with the specified value
+  set KEY VALUE  - creates or overwrites the key with the specified value
                    (aliases: put)
   exists KEY     - checks if the key exists
 

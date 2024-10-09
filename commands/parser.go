@@ -19,8 +19,16 @@ var (
 	TooManyArgumentsErr   = errors.New("too many arguments")
 )
 
+func parseGlob(in []byte, min int, max int) ([][]byte, error) {
+	args := parse(in, max, true)
+	if len(args) < min {
+		return nil, NotEnoughArgumentsErr
+	}
+	return args, nil
+}
+
 func parseRange(in []byte, min int, max int) ([][]byte, error) {
-	args := parse(in)
+	args := parse(in, max, false)
 	if len(args) < min {
 		return nil, NotEnoughArgumentsErr
 	}
@@ -34,7 +42,7 @@ func parseRange(in []byte, min int, max int) ([][]byte, error) {
 // handle both space delimiters and arguments in quotations
 // arguments are defined as contained by spaces ' arg ' or quotations '"arg"'
 // forward slash escapes for nested quotations
-func parse(in []byte) [][]byte {
+func parse(in []byte, max int, glob bool) [][]byte {
 	var results [][]byte
 	var arg []byte
 	state := STATE_NONE
@@ -47,6 +55,9 @@ func parse(in []byte) [][]byte {
 		}
 
 		results = append(results, arg)
+
+		arg = make([]byte, 0)
+		state = STATE_NONE
 	}
 
 	for _, b := range in {
@@ -60,10 +71,8 @@ func parse(in []byte) [][]byte {
 				state = STATE_WORD
 			}
 		case STATE_WORD:
-			if isWhiteSpace(b) {
+			if isWhiteSpace(b) && (len(results) < max-1 || glob == false) {
 				pushArg()
-				arg = make([]byte, 0)
-				state = STATE_NONE
 			} else {
 				arg = append(arg, b)
 			}
@@ -75,8 +84,6 @@ func parse(in []byte) [][]byte {
 					arg = []byte(unquoted)
 				}
 				pushArg()
-				arg = make([]byte, 0)
-				state = STATE_NONE
 			} else {
 				arg = append(arg, b)
 			}
