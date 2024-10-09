@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"lmdb-cli/core"
+	"github.com/2nd/lmdb-cli/core"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )

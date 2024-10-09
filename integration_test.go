@@ -6,7 +6,7 @@ import (
 	"path"
 	"testing"
 
-	"lmdb-cli/core"
+	"github.com/2nd/lmdb-cli/core"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 	. "github.com/karlseguin/expect"
